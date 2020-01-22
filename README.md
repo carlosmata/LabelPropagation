@@ -1,2 +1,2 @@
-# LabelPropagation
-Basic Community Detection Algorithm in secuential mode
+# Label propagation - Secuencial
+Community detection in large scale networks based in label propagation algorithm
