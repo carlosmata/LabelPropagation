@@ -1,4 +1,8 @@
 #include "kernels.h"
+#include <stdlib.h>
+#include <bits/stdc++.h>
+
+using namespace std;
 
 int MAX_THREADS_PER_BLOCK = 256;
 
@@ -381,6 +385,10 @@ int getMaximumLabel(int node,
 			numberMax = countersLabels[i];
 			maximumLabel = labelsNeighbors[i];
 		}
+		//else if(numberMax == countersLabels[i]){
+			//add new maximum label
+		//}
+
 	}
 
 	delete[] labelsNeighbors;
@@ -388,6 +396,16 @@ int getMaximumLabel(int node,
 	return maximumLabel;
 }
 
+/**
+	Apply the Label propagation algorithm in the sequential way
+
+	Parameters.
+	costs: Costs of the edges
+	tails: Array of neighbors of the nodes
+	indexs: Indexs of tails array
+	nNodes: Number of nodes
+	nEdges: Number of edges
+*/
 int* labelPropagationSequential(
 				float* costs, 
 				int* tails, 
@@ -395,28 +413,50 @@ int* labelPropagationSequential(
 				const int nNodes,
 				const int nEdges)
 {
-	int *labels = new int[nNodes]; 
+	int *labels = new int[nNodes];
+	int *nodes = new int[nNodes];
 	bool thereAreChanges = true;
 	int maximumLabel = -1;
+	int node;
+
+	/* initialize random seed: */
+	srand (time(NULL));
 
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
+		nodes[i] = i;
 	}
 
+	sort(nodes, nodes + nNodes);
+	int t = 0;
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+		printf("Iteracion %d \n [", t);
+		for(int i = 0;i < nNodes; i++){
+			printf("%d, ",labels[i]);
+		}
+		printf("]\n");
+
 		thereAreChanges =  false;
 		//Optionally: delete nodes with 1 edge and 0 edges
-		for(int n = 0; n < nNodes; n++){ //random permutation of Nodes
+		next_permutation(nodes, nodes + nNodes);
+
+		for(int i = 0;i < nNodes; i++){
+			cout << nodes[i] << ",";
+		}
+		cout << endl;
+
+		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
+			node = nodes[i];
 			//find the maximum label of their neightbors
-			maximumLabel = getMaximumLabel(n, tails, indexs, labels, nNodes, nEdges);
-			if(maximumLabel != labels[n]){
-				labels[n] = maximumLabel;
+			maximumLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges);
+			if(maximumLabel != labels[node]){
+				labels[node] = maximumLabel;
 				thereAreChanges = true;
 			}
 		}
+		t++;
 	}
-
 	return labels;
 }
 //-------------------------------------------------------------

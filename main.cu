@@ -17,6 +17,8 @@ void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed
 	float value;
 	string name = "";
 
+
+	cout << endl;
 	for (int node_i = 0; node_i < nNodes; node_i++) {
 		value = (directed)? centralityGraph[node_i]:centralityGraph[node_i] / 2;
 
@@ -31,12 +33,13 @@ void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed
 /**
 	Print the communities computed
 */
-void printCommunities(Graph *g, int nNodes, int *communities, bool directed){
+void printCommunities(Graph *g, int nNodes, int *communities){
 	float value;
 	string name = "";
 
+	cout << endl;
 	for (int node_i = 0; node_i < nNodes; node_i++) {
-		value = (directed)? communities[node_i]:communities[node_i] / 2;
+		value = communities[node_i];
 
 		name = g->getName(node_i); 
 		cout << "Node: " << node_i
@@ -135,7 +138,7 @@ void label_propagation_sequential(Graph *g){
 	//-----------------------------Begin time to algorithm------------------------------------------------
 	auto start = chrono::high_resolution_clock::now();
 	ios_base::sync_with_stdio(false);
-
+	
 	int* labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
 
 	auto end = chrono::high_resolution_clock::now();
@@ -143,7 +146,7 @@ void label_propagation_sequential(Graph *g){
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
 	
-	printCommunities(g, nNodes, labels, false);
+	printCommunities(g, nNodes, labels);
 
 	delete[] labels;
 
@@ -186,35 +189,36 @@ void printGraph(Graph *g){
 
 int main(int argc, char **argv)
 {
-    string filename = "datasets/paper/com-amazon.ungraph.txt";
-    int type = 3;
+	string filename = "datasets/karate_test.txt";
+	int type = 2; //1-directed, 2-undirected, 3-NET extension
 
-    if(argc == 2){
-    	filename = argv[1];
-    }
-    if(argc == 3){
-    	filename = argv[1];
-    	type = atoi(argv[2]);
-    }
+	if(argc == 2){
+		filename = argv[1];
+	}
+	if(argc == 3){
+		filename = argv[1];
+		type = atoi(argv[2]);
+	}
 
-    Graph *g = new Graph(filename, type);
-	
-    if(g->getNumberNodes() > 0)
-    {
-    	cout << "Dataset: " << filename << endl;
+	Graph *g = new Graph(filename, type);
+	if(g->getNumberNodes() > 0)
+	{
+		cout << "Dataset: " << filename << endl;
 		cout << "Number of Nodes: " << g->getNumberNodes() << endl;
 		cout << "Number of Edges: " << g->getNumberEdges() << endl;
 
 		//centrality_sequential_brandes(g);
 		//centrality_parallel_brandes(g);
-    }
-    else
-        cout << "Data null in the dataset";
+		printGraph(g);
+		label_propagation_sequential(g);
+	}
+	else
+		cout << "Data null in the dataset";
 		
 	delete[] g->getCosts();
-    delete[] g->getTails();
-    delete[] g->getIndexs();
-    delete g;
+	delete[] g->getTails();
+	delete[] g->getIndexs();
+	delete g;
 }
 
 

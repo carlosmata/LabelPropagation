@@ -4,14 +4,14 @@ __host__
 Graph::Graph(string filename, int type) {
 	this->inf = 2147483647; 
 
-	if(type == 1){ //txt breast 
+	if(type == 1){ //txt directed
 		this->createFromFile(filename, 1);
 	}
-	else if(type == 2){ //net
-		this->createFromFileNET(filename);
-	}
-	else if(type == 3){ //txt breast 
+	else if(type == 2){ //txt undirected 
 		this->createFromFile(filename, 0);
+	}
+	else if(type == 3){ //net extension 
+		this->createFromFileNET(filename);
 	}
 	else{ //txt #FromNodeId ToNodeId
 		int n = this->readNumberOfNodes(filename);
@@ -329,7 +329,7 @@ bool Graph::createFromFile(string filename, int directed) {
 				}
 
 				mp.find(nodei)->second.push_back(nodej);
-				if(directed == 1)
+				if(directed == 0)
 					mp.find(nodej)->second.push_back(nodei);
 			}
 		}
