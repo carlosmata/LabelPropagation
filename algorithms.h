@@ -13,6 +13,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 }
 //----------------------------------------B Centrality Algorithms--------------------------------------------
 //----------------------------------------Secuential---------------------------------------------------------
+//---------------------Centrality-----------------------------
 __host__ 
 void dijkstraSequential(
 				float* costs, 
@@ -316,7 +317,109 @@ float* hybric_BCSequential(
 	}*/
 	return bc;
 }
+//-------------------------------------------------------------
+//_-----------------Communities--------------------------------
+/**
+	Compute the community detection running the label propagation algorithm
+*/
+int findLabel(int* labelsNeighbors,
+			  int label,
+			  int totalNeighbors){
+	for(int n = 0; n < totalNeighbors; n++){
+		if(label == labelsNeighbors[n]){
+			return n;
+		}
+	}
 
+	return -1;
+}
+
+int getMaximumLabel(int node,
+					int* tails, 
+					int* indexs,
+					int* labels, 
+					const int nNodes,
+					const int nEdges){
+	//Get their neighboors
+	int maximumLabel = -1;
+	int neighbor = -1;
+	int index = indexs[node];
+	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
+	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+
+	int *labelsNeighbors = new int[tamLabels];
+	int *countersLabels = new int[tamLabels];
+	int posLabelN = -1;
+	int itLabelN = 0;
+	for(int i = 0; i < tamLabels; i++){
+		labelsNeighbors[i] = -1;
+		countersLabels[i] = 0;
+	}
+
+	//find the maximum label of their neighbors
+
+	//Count the labels
+	for(int tail = index; tail < nextIndex; tail++){
+		neighbor = tails[tail];//get the neighbor
+		if(neighbor < nNodes){ //the neightbor exist
+			//find if the label exist en the labelsNeighbor
+			posLabelN = findLabel(labelsNeighbors, labels[neighbor], tamLabels);
+			if(posLabelN == -1){//new label
+				labelsNeighbors[itLabelN] = labels[neighbor];
+				countersLabels[itLabelN] = 1;
+				itLabelN++;
+			}
+			else{
+				countersLabels[posLabelN]++;
+			}
+		}
+	}
+	//Find the Maximum
+	int numberMax = -1;
+	for(int i = 0;i < itLabelN; i++){
+		if(numberMax < countersLabels[i]){
+			numberMax = countersLabels[i];
+			maximumLabel = labelsNeighbors[i];
+		}
+	}
+
+	delete[] labelsNeighbors;
+	delete[] countersLabels;
+	return maximumLabel;
+}
+
+int* labelPropagationSequential(
+				float* costs, 
+				int* tails, 
+				int* indexs, 
+				const int nNodes,
+				const int nEdges)
+{
+	int *labels = new int[nNodes]; 
+	bool thereAreChanges = true;
+	int maximumLabel = -1;
+
+	//set the community to each node
+	for(int i = 0;i < nNodes; i++){
+		labels[i] = i;
+	}
+
+	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+		thereAreChanges =  false;
+		//Optionally: delete nodes with 1 edge and 0 edges
+		for(int n = 0; n < nNodes; n++){ //random permutation of Nodes
+			//find the maximum label of their neightbors
+			maximumLabel = getMaximumLabel(n, tails, indexs, labels, nNodes, nEdges);
+			if(maximumLabel != labels[n]){
+				labels[n] = maximumLabel;
+				thereAreChanges = true;
+			}
+		}
+	}
+
+	return labels;
+}
+//-------------------------------------------------------------
 
 
 

@@ -5,7 +5,7 @@
 #include <chrono>
 #include <cuda_runtime.h>
 
-#include "BCalgorithms.h"
+#include "algorithms.h"
 
 using namespace std;
 
@@ -31,12 +31,12 @@ void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed
 /**
 	Print the communities computed
 */
-void printCommunities(Graph *g, int nNodes, float *communities, bool directed){
+void printCommunities(Graph *g, int nNodes, int *communities, bool directed){
 	float value;
 	string name = "";
 
 	for (int node_i = 0; node_i < nNodes; node_i++) {
-		value = (directed)? centralityGraph[node_i]:centralityGraph[node_i] / 2;
+		value = (directed)? communities[node_i]:communities[node_i] / 2;
 
 		name = g->getName(node_i); 
 		cout << "Node: " << node_i
