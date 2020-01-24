@@ -325,12 +325,17 @@ float* hybric_BCSequential(
 //_-----------------Communities--------------------------------
 /**
 	Compute the community detection running the label propagation algorithm
+	
+	Parameters:
+		labelsNeigbours:
+		label:
+		totalNeighbours: Size of the array neigh
 */
-int findLabel(int* labelsNeighbors,
+int findLabel(int* labelsNeighbours,
 			  int label,
-			  int totalNeighbors){
-	for(int n = 0; n < totalNeighbors; n++){
-		if(label == labelsNeighbors[n]){
+			  int totalNeighbours){
+	for(int n = 0; n < totalNeighbours; n++){
+		if(label == labelsNeighbours[n]){
 			return n;
 		}
 	}
@@ -338,6 +343,16 @@ int findLabel(int* labelsNeighbors,
 	return -1;
 }
 
+/**
+	Returns the label occurring with the highest frequency among neighbours.
+	
+	Parameters.
+	costs: Costs of the edges
+	tails: Array of neighbors of the nodes
+	indexs: Indexs of tails array
+	nNodes: Number of nodes
+	nEdges: Number of edges
+*/
 int getMaximumLabel(int node,
 					int* tails, 
 					int* indexs,
@@ -345,31 +360,28 @@ int getMaximumLabel(int node,
 					const int nNodes,
 					const int nEdges){
 	//Get their neighboors
-	int maximumLabel = -1;
 	int neighbor = -1;
 	int index = indexs[node];
 	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
 	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
 
-	int *labelsNeighbors = new int[tamLabels];
+	int *labelsNeighbours = new int[tamLabels];
 	int *countersLabels = new int[tamLabels];
 	int posLabelN = -1;
 	int itLabelN = 0;
 	for(int i = 0; i < tamLabels; i++){
-		labelsNeighbors[i] = -1;
+		labelsNeighbours[i] = -1;
 		countersLabels[i] = 0;
 	}
-
-	//find the maximum label of their neighbors
 
 	//Count the labels
 	for(int tail = index; tail < nextIndex; tail++){
 		neighbor = tails[tail];//get the neighbor
 		if(neighbor < nNodes){ //the neightbor exist
 			//find if the label exist en the labelsNeighbor
-			posLabelN = findLabel(labelsNeighbors, labels[neighbor], tamLabels);
+			posLabelN = findLabel(labelsNeighbours, labels[neighbor], tamLabels);
 			if(posLabelN == -1){//new label
-				labelsNeighbors[itLabelN] = labels[neighbor];
+				labelsNeighbours[itLabelN] = labels[neighbor];
 				countersLabels[itLabelN] = 1;
 				itLabelN++;
 			}
@@ -380,20 +392,51 @@ int getMaximumLabel(int node,
 	}
 	//Find the Maximum
 	int numberMax = -1;
+	int *maximumLabels = new int[tamLabels];
+	int indexMaximumLabels = 0;
+
 	for(int i = 0;i < itLabelN; i++){
 		if(numberMax < countersLabels[i]){
+			indexMaximumLabels = 0;
 			numberMax = countersLabels[i];
-			maximumLabel = labelsNeighbors[i];
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
 		}
-		//else if(numberMax == countersLabels[i]){
-			//add new maximum label
-		//}
-
+		else if(numberMax == countersLabels[i]){
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
+		}
 	}
 
-	delete[] labelsNeighbors;
+	//Select a label at random
+	int posRandom = rand() % indexMaximumLabels;
+	int maximumLabel = maximumLabels[posRandom];
+
+	delete[] labelsNeighbours;
 	delete[] countersLabels;
+	delete[] maximumLabels;
+
 	return maximumLabel;
+}
+
+/**
+	Compute a new permutation to the sent array
+	Pameters.
+		nodes: Array to get the permutation
+		nNodes: Size of the array
+*/
+void getPermutation(int* nodes, int nNodes){
+	int newPos = 0; //0 to tam array 
+	int aux;
+	for(int i = 0;i < nNodes; i++){
+		//swap
+		newPos = rand() % nNodes;
+		if(newPos < nNodes && newPos > 0){
+			aux = nodes[i];
+			nodes[i] = nodes[newPos];
+			nodes[newPos] = aux;
+		}
+	}
 }
 
 /**
@@ -428,23 +471,21 @@ int* labelPropagationSequential(
 		nodes[i] = i;
 	}
 
-	sort(nodes, nodes + nNodes);
 	int t = 0;
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
-		printf("Iteracion %d \n [", t);
+		/*cout << "Iteracion "<< t << endl << "[";
 		for(int i = 0;i < nNodes; i++){
-			printf("%d, ",labels[i]);
+			cout << labels[i] <<",";
 		}
-		printf("]\n");
+		cout << "]" << endl;*/
 
 		thereAreChanges =  false;
-		//Optionally: delete nodes with 1 edge and 0 edges
-		next_permutation(nodes, nodes + nNodes);
-
+		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
+		/*cout << "Permutacion [";
 		for(int i = 0;i < nNodes; i++){
 			cout << nodes[i] << ",";
 		}
-		cout << endl;
+		cout << "]"<< endl;*/
 
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];

@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 
 		//centrality_sequential_brandes(g);
 		//centrality_parallel_brandes(g);
-		printGraph(g);
+		//printGraph(g);
 		label_propagation_sequential(g);
 	}
 	else
