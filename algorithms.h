@@ -325,7 +325,7 @@ float* hybric_BCSequential(
 //_-----------------Communities--------------------------------
 /**
 	Compute the community detection running the label propagation algorithm
-	
+
 	Parameters:
 		labelsNeigbours:
 		label:
@@ -473,19 +473,9 @@ int* labelPropagationSequential(
 
 	int t = 0;
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
-		/*cout << "Iteracion "<< t << endl << "[";
-		for(int i = 0;i < nNodes; i++){
-			cout << labels[i] <<",";
-		}
-		cout << "]" << endl;*/
 
 		thereAreChanges =  false;
 		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
-		/*cout << "Permutacion [";
-		for(int i = 0;i < nNodes; i++){
-			cout << nodes[i] << ",";
-		}
-		cout << "]"<< endl;*/
 
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];
