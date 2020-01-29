@@ -156,6 +156,37 @@ void label_propagation_sequential(Graph *g){
 }
 
 /**
+	Compute the label propagation in a parallel way
+*/
+void label_propagation_parallel(Graph *g){
+	cout << "Label Propagation Parallel" << endl;
+
+	int nNodes = g->getNumberNodes();
+	int nEdges = g->getNumberEdges();
+	printf("nNodes:%d\n", nNodes);
+	printf("nEdges:%d\n", nEdges);
+
+	//-----------------------------Begin time to algorithm------------------------------------------------
+	auto start = chrono::high_resolution_clock::now();
+	ios_base::sync_with_stdio(false);
+	
+	int* labels = labelPropagationParallel(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+
+	auto end = chrono::high_resolution_clock::now();
+	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
+	time_taken *= 1e-9;
+	//---------------------------------------------------------------------------------------
+	
+	printCommunities(g, nNodes, labels);
+
+	delete[] labels;
+
+	cout << "Parallel Label propagation time taken by program is : " << fixed
+		 << time_taken << setprecision(9);
+	cout << " sec" << endl;
+}
+
+/**
 	Print the sender graph 
 */
 void printGraph(Graph *g){
@@ -211,6 +242,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g);
+		label_propagation_parallel(g);
 	}
 	else
 		cout << "Data null in the dataset";

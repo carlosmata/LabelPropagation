@@ -3,10 +3,10 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#define DSIZE 1000000				//Data size
-#define nTPB 256					//nTPB should be a power-of-2 //Number of threads per block
+//#define DSIZE 1000000				//Data size
+//#define nTPB 256					//nTPB should be a power-of-2 //Number of threads per block
 #define MAX_KERNEL_BLOCKS 30		//Maximum kernel blocks
-#define MAX_BLOCKS ((DSIZE/nTPB)+1)	//Maximum blocks
+//#define MAX_BLOCKS ((DSIZE/nTPB)+1)	//Maximum blocks
 #define MIN(a,b) ((a > b)? b:a)		//Function to return the minium
 #define MIN_VAL -1.0				//Value minium to compare the values
 
@@ -20,13 +20,21 @@ unsigned long long dtime_usec(unsigned long long prev){
 	return ((tv1.tv_sec * USECPSEC)+tv1.tv_usec) - prev;
 }
 //--------------------------------------------------------------------
-
-__device__ volatile int blk_vals[MAX_BLOCKS];
-__device__ volatile int blk_idxs[MAX_BLOCKS];
-__device__ int blk_num = 0;
+//__device__ volatile int blk_vals[MAX_BLOCKS];
+//__device__ volatile int blk_idxs[MAX_BLOCKS];
+//__device__ int blk_num = 0;
 
 __global__ 
-void max_id_kernel(const int *data, const int dsize, int *result, int seed){
+void max_label_kernel(
+					const int *data, 
+					const int dsize, 
+					int *result, 
+					int seed, 
+					volatile int *blk_vals, 
+					volatile int *blk_idxs, 
+					int *blk_num,
+					int nTPB)
+{
 	__shared__ volatile int vals[nTPB];
 	__shared__ volatile int idxs[nTPB];
 	__shared__ volatile int last_block;
@@ -80,7 +88,7 @@ void max_id_kernel(const int *data, const int dsize, int *result, int seed){
 	if (!threadIdx.x){ //threadIdx.x == 0
 		blk_vals[blockIdx.x] = vals[0];
 		blk_idxs[blockIdx.x] = idxs[0];
-		if (atomicAdd(&blk_num, 1) == gridDim.x - 1) // then I am the last block
+		if (atomicAdd(blk_num, 1) == gridDim.x - 1) // then I am the last block
 			last_block = 1;
 	}
 	__syncthreads();
@@ -126,6 +134,9 @@ void max_id_kernel(const int *data, const int dsize, int *result, int seed){
 }
 
 int main(){
+	int DSIZE  = 1000000;
+	int nTPB = 256;
+	int MAX_KERNEL_BLOCKS = 30;
 
 	int *d_vector, *h_vector;
 	h_vector = new int[DSIZE];
@@ -152,13 +163,22 @@ int main(){
 	cudaMalloc(&d_vector, DSIZE * sizeof(int));
 	cudaMemcpy(d_vector, h_vector, DSIZE * sizeof(int), cudaMemcpyHostToDevice);
 	
+	int MAX_BLOCKS = ((DSIZE / nTPB) + 1);
 	int max_index = 0, *d_max_index;
+	volatile int *d_blk_vals;
+	volatile int *d_blk_idxs;
+	int *d_blk_num, h_blk_num = 0;
+
+	cudaMalloc(&d_max_index, sizeof(int));
+	cudaMalloc(&d_blk_num, sizeof(int));
+	cudaMemcpy(d_blk_num, &h_blk_num, sizeof(int), cudaMemcpyHostToDevice);
+
+	cudaMalloc(&d_blk_vals, MAX_BLOCKS * sizeof(int));
+	cudaMalloc(&d_blk_idxs, MAX_BLOCKS * sizeof(int));
 
 	unsigned long long dtime; 
-
 	dtime = dtime_usec(0);
-	cudaMalloc(&d_max_index, sizeof(int));
-	max_id_kernel<<<MIN(MAX_KERNEL_BLOCKS, ((DSIZE+nTPB-1)/nTPB)), nTPB>>>(d_vector, DSIZE, d_max_index, time(NULL));
+	max_label_kernel<<<MIN(MAX_KERNEL_BLOCKS, ((DSIZE+nTPB-1)/nTPB)), nTPB>>>(d_vector, DSIZE, d_max_index, time(NULL), d_blk_vals, d_blk_idxs, d_blk_num);
 	cudaMemcpy(&max_index, d_max_index, sizeof(int), cudaMemcpyDeviceToHost);
 	dtime = dtime_usec(dtime);
 	
