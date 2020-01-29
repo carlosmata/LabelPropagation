@@ -15,9 +15,10 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
       if (abort) exit(code);
    }
 }
-//----------------------------------------B Centrality Algorithms--------------------------------------------
-//----------------------------------------Secuential---------------------------------------------------------
-//---------------------Centrality-----------------------------
+//----------------------------------Algorithms--------------------------------------------
+
+//----------------------------------------------------------------------------------------
+//-------------------------------Centrality Sequential------------------------------------
 __host__ 
 void dijkstraSequential(
 				float* costs, 
@@ -321,181 +322,7 @@ float* hybric_BCSequential(
 	}*/
 	return bc;
 }
-//-------------------------------------------------------------
-//_-----------------Communities--------------------------------
-/**
-	Compute the community detection running the label propagation algorithm
-
-	Parameters:
-		labelsNeigbours:
-		label:
-		totalNeighbours: Size of the array neigh
-*/
-int findLabel(int* labelsNeighbours,
-			  int label,
-			  int totalNeighbours){
-	for(int n = 0; n < totalNeighbours; n++){
-		if(label == labelsNeighbours[n]){
-			return n;
-		}
-	}
-
-	return -1;
-}
-
-/**
-	Returns the label occurring with the highest frequency among neighbours.
-	
-	Parameters.
-	costs: Costs of the edges
-	tails: Array of neighbors of the nodes
-	indexs: Indexs of tails array
-	nNodes: Number of nodes
-	nEdges: Number of edges
-*/
-int getMaximumLabel(int node,
-					int* tails, 
-					int* indexs,
-					int* labels, 
-					const int nNodes,
-					const int nEdges){
-	//Get their neighboors
-	int neighbor = -1;
-	int index = indexs[node];
-	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
-	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
-
-	int *labelsNeighbours = new int[tamLabels];
-	int *countersLabels = new int[tamLabels];
-	int posLabelN = -1;
-	int itLabelN = 0;
-	for(int i = 0; i < tamLabels; i++){
-		labelsNeighbours[i] = -1;
-		countersLabels[i] = 0;
-	}
-
-	//Count the labels
-	for(int tail = index; tail < nextIndex; tail++){
-		neighbor = tails[tail];//get the neighbor
-		if(neighbor < nNodes){ //the neightbor exist
-			//find if the label exist en the labelsNeighbor
-			posLabelN = findLabel(labelsNeighbours, labels[neighbor], tamLabels);
-			if(posLabelN == -1){//new label
-				labelsNeighbours[itLabelN] = labels[neighbor];
-				countersLabels[itLabelN] = 1;
-				itLabelN++;
-			}
-			else{
-				countersLabels[posLabelN]++;
-			}
-		}
-	}
-	//Find the Maximum
-	int numberMax = -1;
-	int *maximumLabels = new int[tamLabels];
-	int indexMaximumLabels = 0;
-
-	for(int i = 0;i < itLabelN; i++){
-		if(numberMax < countersLabels[i]){
-			indexMaximumLabels = 0;
-			numberMax = countersLabels[i];
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
-		}
-		else if(numberMax == countersLabels[i]){
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
-		}
-	}
-
-	//Select a label at random
-	int posRandom = rand() % indexMaximumLabels;
-	int maximumLabel = maximumLabels[posRandom];
-
-	delete[] labelsNeighbours;
-	delete[] countersLabels;
-	delete[] maximumLabels;
-
-	return maximumLabel;
-}
-
-/**
-	Compute a new permutation to the sent array
-	Pameters.
-		nodes: Array to get the permutation
-		nNodes: Size of the array
-*/
-void getPermutation(int* nodes, int nNodes){
-	int newPos = 0; //0 to tam array 
-	int aux;
-	for(int i = 0;i < nNodes; i++){
-		//swap
-		newPos = rand() % nNodes;
-		if(newPos < nNodes && newPos > 0){
-			aux = nodes[i];
-			nodes[i] = nodes[newPos];
-			nodes[newPos] = aux;
-		}
-	}
-}
-
-/**
-	Apply the Label propagation algorithm in the sequential way
-
-	Parameters.
-	costs: Costs of the edges
-	tails: Array of neighbors of the nodes
-	indexs: Indexs of tails array
-	nNodes: Number of nodes
-	nEdges: Number of edges
-*/
-int* labelPropagationSequential(
-				float* costs, 
-				int* tails, 
-				int* indexs, 
-				const int nNodes,
-				const int nEdges)
-{
-	int *labels = new int[nNodes];
-	int *nodes = new int[nNodes];
-	bool thereAreChanges = true;
-	int maximumLabel = -1;
-	int node;
-
-	/* initialize random seed: */
-	srand (time(NULL));
-
-	//set the community to each node
-	for(int i = 0;i < nNodes; i++){
-		labels[i] = i;
-		nodes[i] = i;
-	}
-
-	int t = 0;
-	while(thereAreChanges){//until a node dont have the maximum of their neightbors
-
-		thereAreChanges =  false;
-		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
-
-		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
-			node = nodes[i];
-			//find the maximum label of their neightbors
-			maximumLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges);
-			if(maximumLabel != labels[node]){
-				labels[node] = maximumLabel;
-				thereAreChanges = true;
-			}
-		}
-		t++;
-	}
-	return labels;
-}
-//-------------------------------------------------------------
-
-
-
-//---------------------------------------------------Parallel--------------------------------------------
-
+//-------------------------------Centrality Parallel-------------------------------------
 void brandesParallel( 
 				int* nodes,
 				int* edges,
@@ -629,127 +456,294 @@ void brandesParallel(
 	cudaFree(d_dist);
 }
 
+int bc_bfs(
+			int n_count, 
+			int e_count, 
+			int * h_v, 
+			int *h_e, 
+			float *h_bc)
+{
 
-int bc_bfs(int n_count, int e_count, int * h_v, int *h_e, float *h_bc){
-	/*cout<< "nodos:"<< n_count<<endl;
-	cout<< "edges:"<< e_count<<endl;
+	int *d_v, *d_e;
+	cudaCheckError(cudaMalloc((void **)&d_v, sizeof(int)*e_count));
+	cudaCheckError(cudaMalloc((void **)&d_e, sizeof(int)*e_count));
 
-	cout<<"nodes: ["<<endl;
-	for(int n = 0; n < e_count; n++){
-		cout<< ", "<< h_v[n];
+	cudaCheckError(cudaMemcpy(d_v, h_v, sizeof(int)*e_count, cudaMemcpyHostToDevice));
+	cudaCheckError(cudaMemcpy(d_e, h_e, sizeof(int)*e_count, cudaMemcpyHostToDevice));
+
+	int *d_d, *d_sigma;
+	float *d_delta;
+	/* use unsigned int array to implement bit array */
+	unsigned int *d_p; /* two dimensional predecessor  array (nxn)*/ 
+	int *d_dist;
+	float *d_bc;
+
+	cudaCheckError(cudaMalloc((void **)&d_d, sizeof(int)*n_count));
+	cudaCheckError(cudaMalloc((void **)&d_sigma, sizeof(int)*n_count)); 
+	cudaCheckError(cudaMalloc((void **)&d_delta, sizeof(float)*n_count)); 
+	unsigned long long total_bits=(unsigned long long)n_count*n_count;
+	unsigned int num_of_ints=BITS_TO_INTS(total_bits);
+
+	cudaCheckError(cudaMalloc((void **)&d_p, sizeof(unsigned int)*num_of_ints)); 
+	cudaCheckError(cudaMalloc((void **)&d_dist, sizeof(int)));
+	cudaCheckError(cudaMalloc((void **)&d_bc, sizeof(float)*n_count)); 
+
+	cudaCheckError(cudaMemcpy(d_bc, h_bc, sizeof(float)*n_count, cudaMemcpyHostToDevice));
+
+	int *h_d;
+	int h_sigma_0=1;
+	h_d=(int *)malloc(sizeof(int)*n_count);
+
+	for(int i=0; i<n_count; i++){
+		for(int j=0; j<n_count; j++){
+			h_d[j]=-1;
+		}
+		h_d[i]=0;
+		cudaCheckError(cudaMemcpy(d_d, h_d, sizeof(int)*n_count, cudaMemcpyHostToDevice));
+		cudaCheckError(cudaMemset(d_sigma, 0, sizeof(int)*n_count));
+		cudaCheckError(cudaMemcpy(&d_sigma[i],&h_sigma_0, sizeof(int), cudaMemcpyHostToDevice));
+		cudaCheckError(cudaMemset(d_delta, 0, sizeof(int)*n_count));
+		cudaCheckError(cudaMemset(d_p, 0, sizeof(unsigned int)*num_of_ints));
+		int threads_per_block=e_count;
+		int blocks=1;
+		if(e_count>MAX_THREADS_PER_BLOCK){
+			blocks = (int)ceil(e_count/(float)MAX_THREADS_PER_BLOCK); 
+			threads_per_block = MAX_THREADS_PER_BLOCK; 
+		}
+		dim3 grid(blocks);
+		dim3 threads(threads_per_block);
+		int threads_per_block2=n_count;
+		int blocks2=1;
+		if(n_count>MAX_THREADS_PER_BLOCK){ 
+			blocks2 = (int)ceil(n_count/(double)MAX_THREADS_PER_BLOCK); 
+			threads_per_block2 = MAX_THREADS_PER_BLOCK; 
+		}
+		dim3 grid2(blocks2);
+		dim3 threads2(threads_per_block2);
+
+		bool h_continue;
+		bool *d_continue;
+		cudaMalloc((void **)&d_continue, sizeof(bool));
+		int h_dist=0;
+		cudaCheckError(cudaMemset(d_dist, 0, sizeof(int)));
+		// BFS  
+		do{
+			h_continue=false;
+			cudaCheckError(cudaMemcpy(d_continue, &h_continue, sizeof(bool), cudaMemcpyHostToDevice));
+			bc_bfs_kernel<<<grid,threads>>>(d_v, d_e, d_d, d_sigma, d_p, d_continue, d_dist, n_count, e_count);
+			check_CUDA_Error("Kernel bc_bfs_kernel invocation");
+			cudaCheckError(cudaDeviceSynchronize());
+			h_dist++; 
+			cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
+			cudaCheckError(cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
+		}while(h_continue);   
+		//cout << "h_dist: " << h_dist;
+
+		h_continue=false;
+		//Back propagation
+		cudaCheckError(cudaMemcpy(&h_dist, d_dist, sizeof(int), cudaMemcpyDeviceToHost));
+		do{
+			bc_bfs_back_prop_kernel<<<grid, threads>>>(d_v, d_e, d_d, d_sigma, d_delta, d_p, d_dist, n_count, e_count);
+			check_CUDA_Error("Kernel bc_bfs_back_prop_kernel invocation");
+			cudaCheckError(cudaDeviceSynchronize());
+			bc_bfs_back_sum_kernel<<<grid2, threads2>>>(i, d_dist, d_d,  d_delta, d_bc, n_count);
+			check_CUDA_Error("Kernel bc_bfs_back_sum_kernel invocation");
+			cudaCheckError(cudaDeviceSynchronize());
+			h_dist--;
+			cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
+		}while(h_dist>1);
 	}
-	cout<<"]"<<endl;
+	cudaCheckError(cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));
 
-	cout<<"edges: ["<<endl;
-	for(int n = 0; n < e_count; n++){
-		cout<< ", "<< h_e[n];
-	}
-	cout<<"]"<<endl;
-
-	cout<<h_bc<<endl;*/
-
-  int *d_v, *d_e;
-  cudaCheckError(cudaMalloc((void **)&d_v, sizeof(int)*e_count));
-  cudaCheckError(cudaMalloc((void **)&d_e, sizeof(int)*e_count));
-
-  cudaCheckError(cudaMemcpy(d_v, h_v, sizeof(int)*e_count, cudaMemcpyHostToDevice));
-  cudaCheckError(cudaMemcpy(d_e, h_e, sizeof(int)*e_count, cudaMemcpyHostToDevice));
-
-  int *d_d, *d_sigma;
-  float *d_delta;
-  /* use unsigned int array to implement bit array */
-  unsigned int *d_p; /* two dimensional predecessor  array (nxn)*/ 
-  int *d_dist;
-  float *d_bc;
-
-  cudaCheckError(cudaMalloc((void **)&d_d, sizeof(int)*n_count));
-  cudaCheckError(cudaMalloc((void **)&d_sigma, sizeof(int)*n_count)); 
-  cudaCheckError(cudaMalloc((void **)&d_delta, sizeof(float)*n_count)); 
-  unsigned long long total_bits=(unsigned long long)n_count*n_count;
-  unsigned int num_of_ints=BITS_TO_INTS(total_bits);
-
-  cudaCheckError(cudaMalloc((void **)&d_p, sizeof(unsigned int)*num_of_ints)); 
-  cudaCheckError(cudaMalloc((void **)&d_dist, sizeof(int)));
-  cudaCheckError(cudaMalloc((void **)&d_bc, sizeof(float)*n_count)); 
-
-  cudaCheckError(cudaMemcpy(d_bc, h_bc, sizeof(float)*n_count, cudaMemcpyHostToDevice));
-
-  int *h_d;
-  int h_sigma_0=1;
-  h_d=(int *)malloc(sizeof(int)*n_count);
-
-  for(int i=0; i<n_count; i++){
-    for(int j=0; j<n_count; j++)
-      h_d[j]=-1;
-    h_d[i]=0;
-    cudaCheckError(cudaMemcpy(d_d, h_d, sizeof(int)*n_count, cudaMemcpyHostToDevice));
-    cudaCheckError(cudaMemset(d_sigma, 0, sizeof(int)*n_count));
-    cudaCheckError(cudaMemcpy(&d_sigma[i],&h_sigma_0, sizeof(int), cudaMemcpyHostToDevice));
-    cudaCheckError(cudaMemset(d_delta, 0, sizeof(int)*n_count));
-    cudaCheckError(cudaMemset(d_p, 0, sizeof(unsigned int)*num_of_ints));
-    int threads_per_block=e_count;
-    int blocks=1;
-    if(e_count>MAX_THREADS_PER_BLOCK){
-      blocks = (int)ceil(e_count/(float)MAX_THREADS_PER_BLOCK); 
-      threads_per_block = MAX_THREADS_PER_BLOCK; 
-    }
-    dim3 grid(blocks);
-    dim3 threads(threads_per_block);
-    int threads_per_block2=n_count;
-    int blocks2=1;
-    if(n_count>MAX_THREADS_PER_BLOCK){ 
-      blocks2 = (int)ceil(n_count/(double)MAX_THREADS_PER_BLOCK); 
-      threads_per_block2 = MAX_THREADS_PER_BLOCK; 
-    }
-    dim3 grid2(blocks2);
-    dim3 threads2(threads_per_block2);
-
-    bool h_continue;
-    bool *d_continue;
-    cudaMalloc((void **)&d_continue, sizeof(bool));
-    int h_dist=0;
-    cudaCheckError(cudaMemset(d_dist, 0, sizeof(int)));
-    // BFS  
-    do{
-      h_continue=false;
-      cudaCheckError(cudaMemcpy(d_continue, &h_continue, sizeof(bool), cudaMemcpyHostToDevice));
-      bc_bfs_kernel<<<grid,threads>>>(d_v, d_e, d_d, d_sigma, d_p, d_continue, d_dist, n_count, e_count);
-      check_CUDA_Error("Kernel bc_bfs_kernel invocation");
-      cudaCheckError(cudaDeviceSynchronize());
-      h_dist++; 
-      cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
-      cudaCheckError(cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
-    }while(h_continue);   
-    //cout << "h_dist: " << h_dist;
-
-    h_continue=false;
-    //Back propagation
-    cudaCheckError(cudaMemcpy(&h_dist, d_dist, sizeof(int), cudaMemcpyDeviceToHost));
-    do{
-      bc_bfs_back_prop_kernel<<<grid, threads>>>(d_v, d_e, d_d, d_sigma, d_delta, d_p, d_dist, n_count, e_count);
-      check_CUDA_Error("Kernel bc_bfs_back_prop_kernel invocation");
-      cudaCheckError(cudaDeviceSynchronize());
-      bc_bfs_back_sum_kernel<<<grid2, threads2>>>(i, d_dist, d_d,  d_delta, d_bc, n_count);
-      check_CUDA_Error("Kernel bc_bfs_back_sum_kernel invocation");
-      cudaCheckError(cudaDeviceSynchronize());
-      h_dist--;
-      cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
-    }while(h_dist>1);
-  }
-  cudaCheckError(cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));
-
-  /*for(int i= 0; i < n_count; i++){
-  	cout << "d_bc: " << h_bc[i]<< endl;
-  }*/
+	/*for(int i= 0; i < n_count; i++){
+		cout << "d_bc: " << h_bc[i]<< endl;
+	}*/
 
 
-  free(h_d);
-  cudaFree(d_v);
-  cudaFree(d_e);
-  cudaFree(d_d);
-  cudaFree(d_sigma);
-  cudaFree(d_delta);
-  cudaFree(d_p);
-  cudaFree(d_dist);
-  return 0;
+	free(h_d);
+	cudaFree(d_v);
+	cudaFree(d_e);
+	cudaFree(d_d);
+	cudaFree(d_sigma);
+	cudaFree(d_delta);
+	cudaFree(d_p);
+	cudaFree(d_dist);
+	return 0;
 }
+
+//---------------------------------------------------------------------------------------
+//_----------------------------Communities Sequential------------------------------------
+/**
+	Compute the community detection running the label propagation algorithm
+
+	Parameters:
+		labelsNeigbours:
+		label:
+		totalNeighbours: Size of the array neigh
+*/
+int findLabel(int* labelsNeighbours,
+			  int label,
+			  int totalNeighbours)
+{
+	for(int n = 0; n < totalNeighbours; n++){
+		if(label == labelsNeighbours[n]){
+			return n;
+		}
+	}
+
+	return -1;
+}
+
+/**
+	Returns the label occurring with the highest frequency among neighbours.
+	
+	Parameters.
+	costs: Costs of the edges
+	tails: Array of neighbors of the nodes
+	indexs: Indexs of tails array
+	nNodes: Number of nodes
+	nEdges: Number of edges
+*/
+int getMaximumLabel(int node,
+					int* tails, 
+					int* indexs,
+					int* labels, 
+					const int nNodes,
+					const int nEdges)
+{
+	//Get their neighboors
+	int neighbor = -1;
+	int index = indexs[node];
+	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
+	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+
+	int *labelsNeighbours = new int[tamLabels];
+	int *countersLabels = new int[tamLabels];
+	int posLabelN = -1;
+	int itLabelN = 0;
+	for(int i = 0; i < tamLabels; i++){
+		labelsNeighbours[i] = -1;
+		countersLabels[i] = 0;
+	}
+
+	//Count the labels
+	for(int tail = index; tail < nextIndex; tail++){
+		neighbor = tails[tail];//get the neighbor
+		if(neighbor < nNodes){ //the neightbor exist
+			//find if the label exist en the labelsNeighbor
+			posLabelN = findLabel(labelsNeighbours, labels[neighbor], tamLabels);
+			if(posLabelN == -1){//new label
+				labelsNeighbours[itLabelN] = labels[neighbor];
+				countersLabels[itLabelN] = 1;
+				itLabelN++;
+			}
+			else{
+				countersLabels[posLabelN]++;
+			}
+		}
+	}
+	//Find the Maximum
+	int numberMax = -1;
+	int *maximumLabels = new int[tamLabels];
+	int indexMaximumLabels = 0;
+
+	for(int i = 0;i < itLabelN; i++){
+		if(numberMax < countersLabels[i]){
+			indexMaximumLabels = 0;
+			numberMax = countersLabels[i];
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
+		}
+		else if(numberMax == countersLabels[i]){
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
+		}
+	}
+
+	//Select a label at random
+	int posRandom = rand() % indexMaximumLabels;
+	int maximumLabel = maximumLabels[posRandom];
+
+	delete[] labelsNeighbours;
+	delete[] countersLabels;
+	delete[] maximumLabels;
+
+	return maximumLabel;
+}
+
+/**
+	Compute a new permutation to the sent array
+	Pameters.
+		nodes: Array to get the permutation
+		nNodes: Size of the array
+*/
+void getPermutation(int* nodes, int nNodes)
+{
+	int newPos = 0; //0 to tam array 
+	int aux;
+	for(int i = 0;i < nNodes; i++){
+		//swap
+		newPos = rand() % nNodes;
+		if(newPos < nNodes && newPos > 0){
+			aux = nodes[i];
+			nodes[i] = nodes[newPos];
+			nodes[newPos] = aux;
+		}
+	}
+}
+
+/**
+	Apply the Label propagation algorithm in the sequential way
+
+	Parameters.
+	costs: Costs of the edges
+	tails: Array of neighbors of the nodes
+	indexs: Indexs of tails array
+	nNodes: Number of nodes
+	nEdges: Number of edges
+*/
+int* labelPropagationSequential(
+				float* costs, 
+				int* tails, 
+				int* indexs, 
+				const int nNodes,
+				const int nEdges)
+{
+	int *labels = new int[nNodes];
+	int *nodes = new int[nNodes];
+	bool thereAreChanges = true;
+	int maximumLabel = -1;
+	int node;
+
+	/* initialize random seed: */
+	srand (time(NULL));
+
+	//set the community to each node
+	for(int i = 0;i < nNodes; i++){
+		labels[i] = i;
+		nodes[i] = i;
+	}
+
+	int t = 0;
+	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+
+		thereAreChanges =  false;
+		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
+
+		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
+			node = nodes[i];
+			//find the maximum label of their neightbors
+			maximumLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges);
+			if(maximumLabel != labels[node]){
+				labels[node] = maximumLabel;
+				thereAreChanges = true;
+			}
+		}
+		t++;
+	}
+	return labels;
+}
+
+//-----------------------------Communities Parallel---------------------------------------
+
+//----------------------------------------------------------------------------------------

@@ -8,7 +8,8 @@
 #define BITS_TO_INTS(bits)   ((((bits) - 1) / INT_BIT) + 1)  
 
 __host__ __device__
-int getNextIndex(int source, int *indexs, int nNodes, int nEdges) {
+int getNextIndex(int source, int *indexs, int nNodes, int nEdges) 
+{
 	
 	for (int i = source + 1; i < nNodes; i++) {
 		if (indexs[i] > indexs[source] &&
@@ -20,7 +21,8 @@ int getNextIndex(int source, int *indexs, int nNodes, int nEdges) {
 	return nEdges;
 }
 
-int verifyDeviceCUDA(){
+int verifyDeviceCUDA()
+{
 	int deviceCount;
 	cudaGetDeviceCount(&deviceCount);
 	if (deviceCount == 0) {
@@ -63,9 +65,9 @@ void check_CUDA_Error(const char *mensaje)
 	 }
 }
 
-
 __host__ 
-int getSmallDistance(int *visited, int *distance, int nNodes) {
+int getSmallDistance(int *visited, int *distance, int nNodes) 
+{
 	int smallDistance = -1;
 	int mini = INF;
 	for (int node_i = 0; node_i < nNodes; node_i++) {
@@ -79,8 +81,8 @@ int getSmallDistance(int *visited, int *distance, int nNodes) {
 }
 
 __host__ 
-void computeCentralityPath(int source, int tail, List parents[], float* centrality) {
-
+void computeCentralityPath(int source, int tail, List parents[], float* centrality) 
+{
 	int parent, i = 0;
 	List queue;
 	//float incremento = 1.0 / parents[tail].size();
