@@ -10,6 +10,37 @@
 using namespace std;
 
 //---------------------------------------------Call methods--------------------------------------------
+
+/**
+	Count the number of communities in the sent labels
+*/
+int countCommunities(int *labels, int nNodes){
+	int totalLabels[nNodes];
+	int posLabelN;
+	int itLabelN = 0;
+
+	for(int i = 0;i < nNodes; i++){
+		totalLabels[i] = -1;
+	}
+
+	for(int i = 0;i < nNodes; i++){
+		posLabelN = -1;
+		//find label
+		for(int n = 0; n < nNodes; n++){ //find label
+			if(labels[i] == totalLabels[n]){
+				posLabelN = n;
+				break;
+			}
+		}
+		if(posLabelN == -1){//new label
+			totalLabels[itLabelN] = labels[i];
+			itLabelN++;
+		}
+	}
+
+	return itLabelN;
+}
+
 /**
 	Print the centrality 
 */
@@ -34,7 +65,7 @@ void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed
 	Print the communities computed
 */
 void printCommunities(Graph *g, int nNodes, int *communities){
-	float value;
+	/*float value;
 	string name = "";
 
 	cout << endl;
@@ -46,7 +77,10 @@ void printCommunities(Graph *g, int nNodes, int *communities){
 			 << ":" << name
 			 << " Community:" 
 			 << value << endl;
-	}
+	}*/
+
+
+	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
 }
 
 /**
@@ -223,10 +257,10 @@ int main(int argc, char **argv)
 	string filename = "datasets/karate_test.txt";
 	int type = 2; //1-directed, 2-undirected, 3-NET extension
 
-	if(argc == 2){
+	if(argc == 2){//Add the filename of the datasets
 		filename = argv[1];
 	}
-	if(argc == 3){
+	if(argc == 3){//Add the type of the filename
 		filename = argv[1];
 		type = atoi(argv[2]);
 	}

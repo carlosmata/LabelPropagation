@@ -277,6 +277,128 @@ void lp_max_label_kernel(
 //----------------------------------------------------------------------------
 
 //-------------------------Version 2------------------------------------------
+__device__
+int lp_get_maximum_label(
+					int node,
+					int* tails, 
+					int* indexs,
+					int* labels, 
+					curandState_t state,
+					const int nNodes,
+					const int nEdges
+					)
+{
+	//Get their neighboors
+	int neighbor = -1;
+	int index = indexs[node];
+	int nextIndex = (node + 1 < nNodes)? indexs[node + 1]:nEdges; 
+	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+
+	int *labelsNeighbours = new int[tamLabels];
+	int *countersLabels = new int[tamLabels];
+	int posLabelN = -1;
+	int itLabelN = 0;
+
+	for(int i = 0; i < tamLabels; i++){
+		labelsNeighbours[i] = -1;
+		countersLabels[i] = 0;
+	}
+
+	//Count the labels
+	for(int tail = index; tail < nextIndex; tail++){
+		neighbor = tails[tail];//get the neighbor
+		if(neighbor < nNodes){ //the neightbor exist
+			//find if the label exist en the labelsNeighbor
+			posLabelN = -1;
+
+			for(int n = 0; n < tamLabels; n++){ //find label
+				if(labels[neighbor] == labelsNeighbours[n]){
+					posLabelN = n;
+					break;
+				}
+			}
+
+			if(posLabelN == -1){//new label
+				labelsNeighbours[itLabelN] = labels[neighbor];
+				countersLabels[itLabelN] = 1;
+				itLabelN++;
+			}
+			else{
+				countersLabels[posLabelN]++;
+			}
+		}
+	}
+
+	//Find the Maximum
+	int numberMax = -1;
+	int *maximumLabels = new int[tamLabels];
+	int indexMaximumLabels = 0;
+
+	for(int i = 0;i < itLabelN; i++){
+		if(numberMax < countersLabels[i]){
+			indexMaximumLabels = 0;
+			numberMax = countersLabels[i];
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
+		}
+		else if(numberMax == countersLabels[i]){
+			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
+			indexMaximumLabels++;
+		}
+	}
+
+	
+
+	//Select a label at random
+	int posRandom = curand(&state) % indexMaximumLabels;
+	int maximumLabel = maximumLabels[posRandom];
+
+	delete[] labelsNeighbours;
+	delete[] countersLabels;
+	delete[] maximumLabels;
+
+	return maximumLabel;
+}
+
+
+__global__
+void lp_compute_maximum_labels_kernel(
+						int* nodes,					//Array of nodes (permutation)
+						int* tails,					//edges
+						int* indexs,				//edges
+						int* labels,				//Array of label's nodes 
+						bool* thereAreChanges,		//flag
+						int seed,					//time(NULL)
+						const int nNodes,			//number of nodes
+						const int nEdges			//number of edges
+						)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	//gridDim.x		-----	Number of blocks
+	//threadIdx.x	-----	id of thread in the block
+	//blockDim.x	-----	Number of threads per block
+	//blockIdx.x	-----	id of the block in the grid
+	
+	if(idx < nNodes){
+		int node, maximumLabel;
+		curandState_t state;
+		curand_init(seed, /* the seed controls the sequence of random values that are produced */
+					0,    /* the sequence number is only important with multiple cores */
+					0,    /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+					&state);
+
+		while(idx < nNodes){
+			node = nodes[idx];
+			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels, state, nNodes, nEdges);
+			if(maximumLabel != labels[node]){
+				labels[node] = maximumLabel;
+				*thereAreChanges = true;
+			}
+			idx += blockDim.x * gridDim.x;
+		}
+	}
+}
+
 
 //----------------------------------------------------------------------------
 
