@@ -693,6 +693,12 @@ void getPermutation(int* nodes, int nNodes)
 	}
 }
 
+void printarray (int arg[], int length) {
+	for (int n=0; n<length; ++n)
+		cout << arg[n] << ' ';
+	cout << '\n';
+}
+
 /**
 	Apply the Label propagation algorithm in the sequential way
 
@@ -725,12 +731,14 @@ int* labelPropagationSequential(
 		nodes[i] = i;
 	}
 
+	cout<<"Begin Label propagation:"<<endl;
 	int t = 0;
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
 
 		thereAreChanges =  false;
 		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
 
+		printarray(labels, nNodes);
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];
 			//find the maximum label of their neightbors
