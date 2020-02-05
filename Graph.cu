@@ -733,7 +733,8 @@ void Graph::floydWharshall(
 				int* indexs, 
 				float* centrality,
 				const int nNodes,
-				const int nEdges){
+				const int nEdges)
+{
 	int distance[nNodes * nNodes];
 	List paths[nNodes * nNodes];
 	int index, nextIndex, endpoint;
