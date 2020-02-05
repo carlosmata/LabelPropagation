@@ -162,7 +162,7 @@ void centrality_sequential_brandes(Graph *g){
 	Compute the label propagation in a sequential way
 */
 void label_propagation_sequential(Graph *g){
-	cout << "Label Propagation Secuencial" << endl;
+	cout << "Label Propagation Secuential" << endl;
 
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g);
-		label_propagation_parallel(g);
+		//label_propagation_parallel(g);
 	}
 	else
 		cout << "Data null in the dataset";
