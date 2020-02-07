@@ -1,17 +1,17 @@
 #include "Graph.h"
 //-----------------------------Graph-----------------------------------------------
 __host__
-Graph::Graph(string filename, int type) {
+Graph::Graph(string filename, int type, int sorted) {
 	this->inf = 2147483647; 
 
 	if(type == 1){ //txt directed
-		this->createFromFile(filename, 1);
+		this->createFromFile(filename, 1/*directed*/, sorted);
 	}
 	else if(type == 2){ //txt undirected 
-		this->createFromFile(filename, 0);
+		this->createFromFile(filename, 0/*undirected*/, sorted);
 	}
 	else if(type == 3){ //net extension 
-		this->createFromFileNET(filename);
+		this->createFromFileNET(filename, sorted);
 	}
 	else{ //txt #FromNodeId ToNodeId
 		int n = this->readNumberOfNodes(filename);
@@ -295,7 +295,7 @@ string Graph::removeWhiteSpaces(string s){
 	Add all the edges from a dataset
 */
 __host__
-bool Graph::createFromFile(string filename, int directed) {
+bool Graph::createFromFile(string filename, int directed, int sorted) {
 	string line;
 	
 	//Iterators
@@ -308,6 +308,7 @@ bool Graph::createFromFile(string filename, int directed) {
 	ifstream dataset;
 	dataset.open(filename);
 
+	//Read the datafile and create the nodes in the same time with the edges
 	if (dataset.is_open()) {
 		while (getline(dataset, line)) {
 			if (line.at(0) != '#') {
@@ -319,17 +320,17 @@ bool Graph::createFromFile(string filename, int directed) {
 				nodei = this->removeWhiteSpaces(nodei);
 				nodej = this->removeWhiteSpaces(nodej);
 
-				if(mp.find(nodei) == mp.end()){ //The nodei not exist
+				if(mp.find(nodei) == mp.end()){ //The nodei not exist in the map then create it
 					vector<string> edges;
 					mp.insert({nodei, edges});
 				}
-				if(mp.find(nodej) == mp.end()){ //The nodej not exist
+				if(mp.find(nodej) == mp.end()){ //The nodej not exist in the map then create it
 					vector<string> edges;
 					mp.insert({nodej, edges});
 				}
 
-				mp.find(nodei)->second.push_back(nodej);
-				if(directed == 0)
+				mp.find(nodei)->second.push_back(nodej); //Add the edge nodei->nodej
+				if(directed == 0)						 //If is undiredcted create the edge nodej->nodei
 					mp.find(nodej)->second.push_back(nodei);
 			}
 		}
@@ -340,29 +341,64 @@ bool Graph::createFromFile(string filename, int directed) {
 	}
 	//-----------------File readed-------------------
 
+	//-----------------------------------------------
 	int index = 0;
 	vector<string> edges;
 	int i = 0;
 	int *indexs_aux = new int[mp.size()]; 
 
-	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
-        indexs_aux[i] = index;  	
-        this->nodes.insert({itr->first, i});
-        i++;
-        index = index + itr->second.size();
-        for(int j = 0;j < itr->second.size(); j++){
-        	edges.push_back(itr->second[j]);
-        }
-    } 
+	//Create the nodes with the name and the iteration in the map
+	//then create a vector with all the edges
+    if(sorted == 1){
+    	//Preposesing to the parallel algorithms: Sort the nodes depending of his grade
+		// Declaring the type of Predicate that accepts 2 pairs and return a bool
+		typedef std::function<bool(std::pair<string, vector<string>>, 
+								   std::pair<string, vector<string>>)> Comparator;
+
+		// Defining a lambda function to compare two pairs. It will compare two pairs using second field
+		Comparator compFunctor =
+				[](std::pair<string, vector<string>> elem1,
+				   std::pair<string, vector<string>> elem2)
+				{
+					return elem1.second.size() < elem2.second.size();
+				};
+
+		// Declaring a set that will store the pairs using above comparision logic
+		std::multiset<std::pair<string, vector<string>>, Comparator> sortedNodes(
+				mp.begin(), mp.end(), compFunctor);
+
+	    for (auto itr : sortedNodes){
+	    	indexs_aux[i] = index;
+	    	this->nodes.insert({itr.first, i});
+	        i++;
+	        index = index + itr.second.size();
+	        //cout << itr.second.size() << endl;
+	        for(int j = 0;j < itr.second.size(); j++){
+	        	edges.push_back(itr.second[j]);
+	        }
+	    }
+	}
+	else{
+		for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
+	        indexs_aux[i] = index;  	
+	        this->nodes.insert({itr->first, i});
+	        i++;
+	        index = index + itr->second.size();
+	        for(int j = 0;j < itr->second.size(); j++){
+	        	edges.push_back(itr->second[j]);
+	        }
+    	}
+	}
+
 
     this->numberEdges = edges.size();
     this->edges_cost = new float[edges.size()];
     this->edges_tail = new int[edges.size()];
 
-    //agregar nuevos 
+    //Create the edges array tails and costs 
     for(int edge_i = 0; edge_i < edges.size(); edge_i++){
     	this->edges_cost[edge_i] = 1.0;
-    	if(this->nodes.find(edges[edge_i]) == this->nodes.end()){
+    	if(this->nodes.find(edges[edge_i]) == this->nodes.end()){//The node doesn't exist
     		this->nodes.insert({edges[edge_i], i});
         	this->edges_tail[edge_i] = i;
         	i++;
@@ -372,7 +408,7 @@ bool Graph::createFromFile(string filename, int directed) {
     	}
     }
 
-    // agregar lo nuevo nuevo
+    //Create the indexs array
     this->indexs = new int[this->nodes.size()];
     this->centrality = new float[this->nodes.size()];
     this->numberNodes = this->nodes.size();
@@ -396,7 +432,7 @@ bool Graph::createFromFile(string filename, int directed) {
 	Add all the edges from a dataset
 */
 __host__
-bool Graph::createFromFileNET(string filename) {
+bool Graph::createFromFileNET(string filename, int sorted) {
 	string line;
 
 	//Iterators
@@ -448,6 +484,7 @@ bool Graph::createFromFileNET(string filename) {
 		return false;
 	}
 	//-----------------File readed-------------------
+	//-----------------------------------------------
 
 	int index = 0;
 	vector<string> edges;
@@ -455,16 +492,51 @@ bool Graph::createFromFileNET(string filename) {
 	int i = 0;
 	int *indexs_aux = new int[mp.size()]; 
 
-	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
-        indexs_aux[i] = index;  	
-        this->nodes.insert({itr->first, i});
-        i++;
-        index = index + itr->second.size();
-        for (auto itedge = itr->second.begin(); itedge != itr->second.end(); ++itedge) { 
-        	edges.push_back(itedge->first);
-        	costs.push_back(itedge->second);
-        }
-    } 
+    if(sorted == 1){
+    		//Preposesing to the parallel algorithms: Sort the nodes depending of his grade
+		// Declaring the type of Predicate that accepts 2 pairs and return a bool
+		typedef std::function<bool(std::pair<string, map<string, string>>, 
+								   std::pair<string, map<string, string>>)> Comparator;
+
+		// Defining a lambda function to compare two pairs. It will compare two pairs using second field
+		Comparator compFunctor =
+				[](std::pair<string, map<string, string>> elem1,
+				   std::pair<string, map<string, string>> elem2)
+				{
+					return elem1.second.size() < elem2.second.size();
+				};
+
+		// Declaring a set that will store the pairs using above comparision logic
+		std::multiset<std::pair<string, map<string, string>>, Comparator> sortedNodes(
+				mp.begin(), mp.end(), compFunctor);
+
+		//cout<<sortedNodes.size()<<endl;
+	    for (auto itr : sortedNodes){
+	    	indexs_aux[i] = index;  	
+	        this->nodes.insert({itr.first, i});
+	        i++;
+	        index = index + itr.second.size();
+	        //cout<<itr.second.size()<<endl;
+	        for (auto itedge = itr.second.begin(); itedge != itr.second.end(); ++itedge) { 
+	        	edges.push_back(itedge->first);
+	        	costs.push_back(itedge->second);
+	        }
+	    }
+    }
+    else{
+    	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
+	        indexs_aux[i] = index;  	
+	        this->nodes.insert({itr->first, i});
+	        i++;
+	        index = index + itr->second.size();
+	        //cout<<itr->second.size()<<endl;
+	        for (auto itedge = itr->second.begin(); itedge != itr->second.end(); ++itedge) { 
+	        	edges.push_back(itedge->first);
+	        	costs.push_back(itedge->second);
+	        }
+    	}
+    }
+
 
     this->numberEdges = edges.size();
     this->edges_cost = new float[costs.size()];

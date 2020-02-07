@@ -13,12 +13,15 @@
 #include <cctype>
 #include "List.h"
 
+#include <set>
+#include <functional>
+
 using namespace std;
 
 class Graph
 {
     public:
-        __host__ Graph(string filename, int type);
+        __host__ Graph(string filename, int type, int sorted);
         __host__ Graph(int numberNodes);
         __host__ Graph(float *costs, int *tails, int *indexs, int nEdges, int nNodes);
         __host__ ~Graph();
@@ -79,8 +82,8 @@ class Graph
         //Graph
         __host__ bool addEdges(string filename);
         __host__ vector<string> split (string s, string delimiter);
-        __host__ bool createFromFile(string filename, int directed);
-        __host__ bool createFromFileNET(string filename);
+        __host__ bool createFromFile(string filename, int directed, int sorted);
+        __host__ bool createFromFileNET(string filename, int sorted);
         __host__ int readNumberOfNodes(string filename);
         __host__ __device__ int getSmallDistance(bool *visited, int *distance);
         __host__ __device__ void computeCentralityPath(int source, int tail, float incremento, List parents[]);

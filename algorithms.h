@@ -738,7 +738,7 @@ int* labelPropagationSequential(
 		thereAreChanges =  false;
 		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
 
-		printarray(labels, nNodes);
+		//printarray(labels, nNodes);
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];
 			//find the maximum label of their neightbors

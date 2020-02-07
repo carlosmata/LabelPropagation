@@ -36,13 +36,13 @@ int getAij(
 			int nNodes, 
 			int nEdges){
 	int neighbor = -1;
-	int index = indexs[node];
-	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
+	int index = indexs[nodei];
+	int nextIndex = (nodei + 1 < nNodes)?indexs[nodei + 1]:nEdges; 
 
 	for(int tail = index; tail < nextIndex; tail++){
 		neighbor = tails[tail];//get the neighbor
 		if(neighbor == nodej)
-			return 1
+			return 1;
 	}
 
 	return 0;
@@ -57,20 +57,22 @@ float getModularity(Graph *g, int *labels){
 	int *edges = g->getTails();
 	int *indexs = g->getIndexs();
 
-	int sum = 0;
-	int delta = 0;
+	int m = nEdges / 2; //Undirected graph
+	float sum = 0;
+	float delta = 0;
 	for(int i = 0; i < nNodes; i++){
 		for(int j = 0; j < nNodes; j++){
-			delta = (label[i] == label[j])?1 : 0;
-			sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
-					getGrade(i, indexs, nNodes, nEdges) * 
-					getGrade(j, indexs, nNodes, nEdges) / 
-					(2 * nEdges)
-					) * delta);
+			delta = (labels[i] == labels[j])?1 : 0;
+			if(delta == 1){
+				sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
+						getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
+						(2.0f * m)
+						) /** delta */);
+			}
 		}
 	}
 
-	float modularity = (1 / (2*m)) * sum;
+	float modularity = (1.0f / (2.0f* m)) * sum;
 	return modularity;
 }
 
@@ -143,7 +145,7 @@ void printCommunities(Graph *g, int nNodes, int *communities){
 			 << value << endl;
 	}*/
 
-
+	cout << "\nModularity: "<< getModularity(g, communities);
 	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
 }
 
@@ -320,6 +322,7 @@ int main(int argc, char **argv)
 {
 	string filename = "datasets/karate_test.txt";
 	int type = 2; //1-directed, 2-undirected, 3-NET extension
+	int sorted = 0;
 
 	if(argc == 2){//Add the filename of the datasets
 		filename = argv[1];
@@ -328,8 +331,13 @@ int main(int argc, char **argv)
 		filename = argv[1];
 		type = atoi(argv[2]);
 	}
+	if(argc == 4){//Add the type of the filename and a sorted way desc-asc
+		filename = argv[1];
+		type = atoi(argv[2]);
+		sorted = atoi(argv[3]);
+	}
 
-	Graph *g = new Graph(filename, type);
+	Graph *g = new Graph(filename, type, sorted);
 	if(g->getNumberNodes() > 0)
 	{
 		cout << "Dataset: " << filename << endl;
@@ -339,8 +347,8 @@ int main(int argc, char **argv)
 		//centrality_sequential_brandes(g);
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
-		label_propagation_sequential(g);
-		//label_propagation_parallel(g);
+		//label_propagation_sequential(g);
+		label_propagation_parallel(g);
 	}
 	else
 		cout << "Data null in the dataset";
