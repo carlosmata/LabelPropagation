@@ -6,14 +6,16 @@
 #include <cuda_runtime.h>
 
 #include "algorithms.h"
+#include "community_measures.cu"
 
 using namespace std;
 
 //---------------------------------------------Call methods--------------------------------------------
+
 /**
 	Get the grade of a node
 */
-int getGrade(
+/*int getGrade(
 			int node, 
 			int *indexs,
 			int nNodes, 
@@ -23,12 +25,12 @@ int getGrade(
 	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
 
 	return tamLabels;
-}
+}*/
 
 /**
 	Get the value of the Matrix of adjacency 
 */
-int getAij(
+/*int getAij(
 			int nodei, 
 			int nodej,
 			int *indexs,
@@ -46,11 +48,12 @@ int getAij(
 	}
 
 	return 0;
-}
+}*/
 /**
 	Get the modularity of a result of the label propagation algorithm
 	in other words its a measure of quality of the algorithm
 */
+/*
 float getModularity(Graph *g, int *labels){
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
@@ -67,20 +70,20 @@ float getModularity(Graph *g, int *labels){
 				sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
 						getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
 						(2.0f * m)
-						) /** delta */);
+						) );
 			}
 		}
 	}
 
 	float modularity = (1.0f / (2.0f* m)) * sum;
 	return modularity;
-}
+}*/
 
 
 /**
 	Count the number of communities in the sent labels
 */
-int countCommunities(int *labels, int nNodes){
+/*int countCommunities(int *labels, int nNodes){
 	int totalLabels[nNodes];
 	int posLabelN;
 	int itLabelN = 0;
@@ -105,7 +108,7 @@ int countCommunities(int *labels, int nNodes){
 	}
 
 	return itLabelN;
-}
+}*/
 
 /**
 	Print the centrality 
