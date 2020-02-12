@@ -93,7 +93,7 @@ void Graph::setNodeData(float* costs, int* tails, int* indexs, int nEdges, int n
     //for(int i = 0; i < nNodes; i++){
     //	this->indexs[i] = indexs[i];
     //}
-    this->edges_cost = costs; 
+	this->edges_cost = costs; 
     this->edges_tail = tails;
     this->indexs = indexs; 
     printf("Assignated data Graph\n");
@@ -290,6 +290,46 @@ string Graph::removeWhiteSpaces(string s){
 	return s;
 }
 
+__host__ 
+int* Graph::getRealCommunities(string truedata){
+	string line;
+	
+	//Iterators
+	map<string, string> mp;
+	vector<string> words;
+	string delimiter = "\t";
+	string node;
+	string label;
+
+	ifstream dataset;
+	dataset.open(filename);
+
+	//Read the datafile and create the nodes in the same time with the edges
+	if (dataset.is_open()) {
+		while (getline(dataset, line)) {
+			if (line.at(0) != '#') {
+				words = split(line, delimiter);
+
+				node = words[0];
+				label = words[1];
+
+				node = this->removeWhiteSpaces(nodei);
+				label = this->removeWhiteSpaces(nodej);
+
+				if(mp.find(node) == mp.end()){ //The node not exist in the map then create it
+					mp.insert({node, label});
+				}
+			}
+		}
+		dataset.close();
+	}
+	else {
+		return nullptr;
+	}
+
+	return nullptr;
+}
+
 /**
 	--FILE--
 	Add all the edges from a dataset
@@ -367,16 +407,41 @@ bool Graph::createFromFile(string filename, int directed, int sorted) {
 		std::multiset<std::pair<string, vector<string>>, Comparator> sortedNodes(
 				mp.begin(), mp.end(), compFunctor);
 
+
+		//int *degrees = new int[sortedNodes.size()];
+		//int in = 0;
+
 	    for (auto itr : sortedNodes){
 	    	indexs_aux[i] = index;
 	    	this->nodes.insert({itr.first, i});
 	        i++;
 	        index = index + itr.second.size();
+	        
+	        //degrees[in] = itr.second.size();
+	        //in++;
 	        //cout << itr.second.size() << endl;
+	        
 	        for(int j = 0;j < itr.second.size(); j++){
 	        	edges.push_back(itr.second[j]);
 	        }
 	    }
+	    /*
+	    int tam = degrees[sortedNodes.size() - 1] + 1;
+	    int *counts = new int[tam];
+	    for(int in = 0; in < tam; in++){
+	    	counts[in] = 0;
+	    }
+
+	    for(int in = 0; in < sortedNodes.size(); in++){
+	    	counts[degrees[in]]++;
+	    }
+
+	    for(int in = 0; in < tam; in++){
+	    	cout << in << "\t" << counts[in]<< endl;
+	    }
+
+		delete[] counts;
+	    delete[] degrees;*/
 	}
 	else{
 		for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
@@ -510,6 +575,9 @@ bool Graph::createFromFileNET(string filename, int sorted) {
 		std::multiset<std::pair<string, map<string, string>>, Comparator> sortedNodes(
 				mp.begin(), mp.end(), compFunctor);
 
+		//int *degrees = new int[sortedNodes.size()];
+		//int in = 0;
+
 		//cout<<sortedNodes.size()<<endl;
 	    for (auto itr : sortedNodes){
 	    	indexs_aux[i] = index;  	
@@ -517,11 +585,30 @@ bool Graph::createFromFileNET(string filename, int sorted) {
 	        i++;
 	        index = index + itr.second.size();
 	        //cout<<itr.second.size()<<endl;
+	        //degrees[in] = itr.second.size();
+	        //in++;
 	        for (auto itedge = itr.second.begin(); itedge != itr.second.end(); ++itedge) { 
 	        	edges.push_back(itedge->first);
 	        	costs.push_back(itedge->second);
 	        }
 	    }
+	    
+	    /*int tam = degrees[sortedNodes.size() - 1] + 1;
+	    int *counts = new int[tam];
+	    for(int in = 0; in < tam; in++){
+	    	counts[in] = 0;
+	    }
+
+	    for(int in = 0; in < sortedNodes.size(); in++){
+	    	counts[degrees[in]]++;
+	    }
+
+	    for(int in = 0; in < tam; in++){
+	    	cout << in << "\t" << counts[in] << endl;
+	    }
+
+		delete[] counts;
+	    delete[] degrees;*/
     }
     else{
     	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 

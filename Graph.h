@@ -62,6 +62,7 @@ class Graph
         __host__ string getName(int id);
 		
         __host__ string removeWhiteSpaces(string s);
+        __host__ int* getRealCommunities(string truedata);
 
         //To centrality
         float *centrality = nullptr;

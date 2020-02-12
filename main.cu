@@ -13,104 +13,6 @@ using namespace std;
 //---------------------------------------------Call methods--------------------------------------------
 
 /**
-	Get the grade of a node
-*/
-/*int getGrade(
-			int node, 
-			int *indexs,
-			int nNodes, 
-			int nEdges){
-	int index = indexs[node];
-	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
-	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
-
-	return tamLabels;
-}*/
-
-/**
-	Get the value of the Matrix of adjacency 
-*/
-/*int getAij(
-			int nodei, 
-			int nodej,
-			int *indexs,
-			int *tails,
-			int nNodes, 
-			int nEdges){
-	int neighbor = -1;
-	int index = indexs[nodei];
-	int nextIndex = (nodei + 1 < nNodes)?indexs[nodei + 1]:nEdges; 
-
-	for(int tail = index; tail < nextIndex; tail++){
-		neighbor = tails[tail];//get the neighbor
-		if(neighbor == nodej)
-			return 1;
-	}
-
-	return 0;
-}*/
-/**
-	Get the modularity of a result of the label propagation algorithm
-	in other words its a measure of quality of the algorithm
-*/
-/*
-float getModularity(Graph *g, int *labels){
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-	int *edges = g->getTails();
-	int *indexs = g->getIndexs();
-
-	int m = nEdges / 2; //Undirected graph
-	float sum = 0;
-	float delta = 0;
-	for(int i = 0; i < nNodes; i++){
-		for(int j = 0; j < nNodes; j++){
-			delta = (labels[i] == labels[j])?1 : 0;
-			if(delta == 1){
-				sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
-						getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
-						(2.0f * m)
-						) );
-			}
-		}
-	}
-
-	float modularity = (1.0f / (2.0f* m)) * sum;
-	return modularity;
-}*/
-
-
-/**
-	Count the number of communities in the sent labels
-*/
-/*int countCommunities(int *labels, int nNodes){
-	int totalLabels[nNodes];
-	int posLabelN;
-	int itLabelN = 0;
-
-	for(int i = 0;i < nNodes; i++){
-		totalLabels[i] = -1;
-	}
-
-	for(int i = 0;i < nNodes; i++){
-		posLabelN = -1;
-		//find label
-		for(int n = 0; n < nNodes; n++){ //find label
-			if(labels[i] == totalLabels[n]){
-				posLabelN = n;
-				break;
-			}
-		}
-		if(posLabelN == -1){//new label
-			totalLabels[itLabelN] = labels[i];
-			itLabelN++;
-		}
-	}
-
-	return itLabelN;
-}*/
-
-/**
 	Print the centrality 
 */
 void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed){
@@ -133,7 +35,7 @@ void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed
 /**
 	Print the communities computed
 */
-void printCommunities(Graph *g, int nNodes, int *communities){
+void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
 	/*float value;
 	string name = "";
 
@@ -149,6 +51,12 @@ void printCommunities(Graph *g, int nNodes, int *communities){
 	}*/
 
 	cout << "\nModularity: "<< getModularity(g, communities);
+	if(truedata != ""){
+		int *realCommunities = g->getRealCommunities(truedata);
+		if(realCommunities != nullptr)
+			cout << "\nNMI: "<< getNMI(communities, realCommunities, g->getNumberNodes());
+	}
+	
 	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
 }
 
@@ -230,7 +138,7 @@ void centrality_sequential_brandes(Graph *g){
 /**
 	Compute the label propagation in a sequential way
 */
-void label_propagation_sequential(Graph *g){
+void label_propagation_sequential(Graph *g, string truedata){
 	cout << "Label Propagation Secuential" << endl;
 
 	int nNodes = g->getNumberNodes();
@@ -249,7 +157,7 @@ void label_propagation_sequential(Graph *g){
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
 	
-	printCommunities(g, nNodes, labels);
+	printCommunities(g, nNodes, labels, truedata);
 
 	delete[] labels;
 
@@ -261,7 +169,7 @@ void label_propagation_sequential(Graph *g){
 /**
 	Compute the label propagation in a parallel way
 */
-void label_propagation_parallel(Graph *g){
+void label_propagation_parallel(Graph *g, string truedata){
 	cout << "Label Propagation Parallel" << endl;
 
 	int nNodes = g->getNumberNodes();
@@ -280,7 +188,7 @@ void label_propagation_parallel(Graph *g){
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
 	
-	printCommunities(g, nNodes, labels);
+	printCommunities(g, nNodes, labels, truedata);
 
 	delete[] labels;
 
@@ -326,6 +234,7 @@ int main(int argc, char **argv)
 	string filename = "datasets/karate_test.txt";
 	int type = 2; //1-directed, 2-undirected, 3-NET extension
 	int sorted = 0;
+	string truedata = "";
 
 	if(argc == 2){//Add the filename of the datasets
 		filename = argv[1];
@@ -339,6 +248,12 @@ int main(int argc, char **argv)
 		type = atoi(argv[2]);
 		sorted = atoi(argv[3]);
 	}
+	if(argc == 5){//Add the type of the filename and a sorted way desc-asc
+		filename = argv[1];
+		type = atoi(argv[2]);
+		sorted = atoi(argv[3]);
+		truedata = argv[4];
+	}
 
 	Graph *g = new Graph(filename, type, sorted);
 	if(g->getNumberNodes() > 0)
@@ -350,8 +265,8 @@ int main(int argc, char **argv)
 		//centrality_sequential_brandes(g);
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
-		//label_propagation_sequential(g);
-		label_propagation_parallel(g);
+		label_propagation_sequential(g, truedata);
+		//label_propagation_parallel(g);
 	}
 	else
 		cout << "Data null in the dataset";

@@ -1,4 +1,6 @@
 #include "Graph.h" 
+#include <math.h>
+#include <unordered_set>
 
 /**
 	Get the grade of a node
@@ -7,12 +9,13 @@ int getGrade(
         int node, 
         int *indexs,
         int nNodes, 
-        int nEdges){
-int index = indexs[node];
-int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
-int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+        int nEdges)
+{
+    int index = indexs[node];
+    int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
+    int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
 
-return tamLabels;
+    return tamLabels;
 }
 
 /**
@@ -24,7 +27,8 @@ int getAij(
         int *indexs,
         int *tails,
         int nNodes, 
-        int nEdges){
+        int nEdges)
+{
     int neighbor = -1;
     int index = indexs[nodei];
     int nextIndex = (nodei + 1 < nNodes)?indexs[nodei + 1]:nEdges; 
@@ -97,22 +101,78 @@ int countCommunities(int *labels, int nNodes){
 }
 
 /**
-    Get the normalized mutual information (NMI) value of the values
-    TODO:
-    	Leer archivo para devolver el arreglo trueLabels
-    	Implementar getCommunities (obtener los nombres de las comunidades)
-    	Implementar compareCommunities (comparar dos arreglos)
-		Implementar sumRow y sumColumn
+    Return an array thar contains the communities labels
 */
-float getNMI(int* labesCalculated, int* trueLabels, int nNodes){
-    float denom = 0f;
-    float nume = 0f;
-    float sumNi = 0f;
-    float sumNj = 0f;
+int* getCommunities(int *labels, int nNodes){
+    std::unordered_set<int> s(labels, labels + nNodes);
+    int* communities = new int[s.size()];
 
-    int cA = countCommunities(labesCalculated, nNodes); //Number of real community
-    int cB = countCommunities(trueLabels, nNodes);		//Number of community calculated
-    int N[cA][cB];
+    int i = 0;
+    for(int community: s){
+        communities[i] = community;
+        i++;
+    }
+
+    return communities;
+}
+
+/**
+    Return the number of nodes in the first array with label i that have 
+    the same labelj in the second array
+*/
+int compareCommunities(
+                    int* trueLabels,
+                    int* labelsCalculated,
+                    int nNodes,
+                    int labeli,
+                    int labelj)
+{
+    int Nij = 0;
+
+    for(int i = 0;i < nNodes; i++){
+        if(trueLabels[i] == labeli && labelsCalculated[i] == labelj){
+            Nij++;
+        }
+    }
+
+    return Nij;
+}
+
+/**
+    Return the sum of a column
+*/
+int sumColumn(int** matrix, int column, int rows){
+     int sum = 0;
+     for(int i = 0;i < rows; i++){
+        sum += matrix[i][column];
+     }
+     return sum;
+}
+
+/**
+    Return the sum of a row
+*/
+int sumRow(int** matrix, int row, int columns){
+    int sum = 0;
+    for(int j = 0;j < columns; j++){
+        sum += matrix[row][j];
+    }
+    return sum;
+}
+
+
+/**
+    Get the normalized mutual information (NMI) value of the values
+*/
+float getNMI(int* labelsCalculated, int* trueLabels, int nNodes){
+    if(nNodes == 0)
+        return 0;
+
+    int cA = countCommunities(trueLabels, nNodes); //Number of real community ---   rows
+    int cB = countCommunities(labelsCalculated, nNodes);		//Number of community calculated  columns
+    int** N = new int*[cA];
+    for(int i = 0; i < cA; ++i)
+        N[i] = new int[cB];
 
     int* realCommunities = getCommunities(trueLabels, nNodes);
     int* estCommunities = getCommunities(trueLabels, nNodes);
@@ -121,37 +181,79 @@ float getNMI(int* labesCalculated, int* trueLabels, int nNodes){
     for(int i = 0; i < cA; i++){
     	for(int j = 0; j < cB; j++){
     		N[i][j] = compareCommunities(trueLabels, 
-    									 labesCalculated, 
+    									 labelsCalculated, 
     									 nNodes, 
     									 realCommunities[i], 
     									 estCommunities[j]);
     	}
     }
 
-    //denominator
-    float Ni, Nj;
+    /*cout << "\ncommunities true: " <<  cA << endl;
+    cout << "communities calculated: " <<  cB << endl;
+
+    cout << "communities true:";
+    for(int c = 0; c < cA; c++){
+        cout << realCommunities[c] << ",";
+    }
+    cout << endl;
+
+    cout << "communities calculated:";
+    for(int c = 0; c < cB; c++){
+        cout << estCommunities[c] << ",";
+    }
+    cout << endl;
+
+    cout << "Confusion matrix" << endl;
     for(int i = 0; i < cA; i++){
-    	Ni = sumRow(N, i);
+        for(int j = 0; j < cB; j++){
+            cout << N[i][j] << "\t";
+        }
+        cout << endl;
+    }*/
+
+    //denominator
+    float denom = 0;
+    float Ni, Nj;
+    float aux1, aux2, aux3, aux4; 
+    for(int i = 0; i < cA; i++){
+    	Ni = sumRow(N, i, cB);
     	for(int j = 0; j < cB; j++){
-    		Nj = sumColumn(N, j);
-    		denom += N[i][j] * log10((N[i][j] * nNodes) / (Ni * Nj));
+    		Nj = sumColumn(N, j, cA);
+            aux1 = N[i][j] * nNodes;
+            aux2 = (Ni * Nj);
+            aux3 = (aux2 != 0)? aux1 / aux2: 0;
+            aux4 = (aux3 != 0)? N[i][j] * log10( aux3 ): 0;
+            denom += aux4;
     	}
     }
-    denom = -2 * denom;
+    denom = (-2) * denom;
+    //cout << "\nDenom: " << denom << endl;
 
     //sumNi
+    float sumNi = 0;
     for(int i = 0; i < cA; i++){
-    	Ni = sumRow(N, i);
-    	sumNi += (Ni * log10(Ni / nNodes));
+    	Ni = sumRow(N, i, cB);
+        aux1 = Ni / nNodes;
+        aux2 = (aux1 != 0)? Ni * log10(aux1): 0;
+    	sumNi += aux2;
     }
+    //cout << "sumNi: " << sumNi << endl;
 
     //sumNj
+    float sumNj = 0;
     for(int j = 0; j < cB; j++){
-    	Nj = sumColumn(N, j);
-    	sumNj += (Nj * log10(Nj / nNodes));
+    	Nj = sumColumn(N, j, cA);
+        aux1 = Nj / nNodes;
+        aux2 = (aux1 != 0)? Nj * log10(aux1): 0;
+    	sumNj += aux2;
     }
+    //cout << "sumNj: " << sumNj << endl;
 
-    float nmi = (sumNi + sumNj > 0)? denom / (sumNi + sumNj): 0;
+    float nmi = (sumNi + sumNj != 0)? denom / (sumNi + sumNj): 0;
+
+    for (int i = 0; i < cA; ++i)
+        delete [] N[i];
+    delete [] N;
 
     return nmi;
 }
