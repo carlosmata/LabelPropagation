@@ -60,6 +60,7 @@ class Graph
 		//Node 
 		__host__ float getCentrality(int source);
         __host__ string getName(int id);
+        __host__ int getId(string name);
 		
         __host__ string removeWhiteSpaces(string s);
         __host__ int* getRealCommunities(string truedata);

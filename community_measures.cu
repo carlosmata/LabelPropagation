@@ -34,10 +34,10 @@ int getAij(
     int nextIndex = (nodei + 1 < nNodes)?indexs[nodei + 1]:nEdges; 
 
     for(int tail = index; tail < nextIndex; tail++){
-    neighbor = tails[tail];//get the neighbor
-    if(neighbor == nodej)
-        return 1;
-}
+        neighbor = tails[tail];//get the neighbor
+        if(neighbor == nodej)
+            return 1;
+    }
 
 return 0;
 }
@@ -45,25 +45,22 @@ return 0;
 Get the modularity of a result of the label propagation algorithm
 in other words its a measure of quality of the algorithm
 */
-float getModularity(Graph *g, int *labels){
-    int nNodes = g->getNumberNodes();
-    int nEdges = g->getNumberEdges();
-    int *edges = g->getTails();
-    int *indexs = g->getIndexs();
-
+float getModularity(int *edges, int *indexs, int nNodes, int nEdges, int *labels){
     int m = nEdges / 2; //Undirected graph
     float sum = 0;
     float delta = 0;
     for(int i = 0; i < nNodes; i++){
-    for(int j = 0; j < nNodes; j++){
-        delta = (labels[i] == labels[j])?1 : 0;
-        if(delta == 1){
-            sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
-                    getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
-                    (2.0f * m)
-                    ) /** delta */);
+        for(int j = 0; j < nNodes; j++){
+            if(i != j){
+                delta = (labels[i] == labels[j])?1 : 0;
+                if(delta == 1){
+                    sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
+                            getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
+                            (2.0f * m)
+                            ) /** delta */);
+                }
+            }
         }
-    }
     }
 
     float modularity = (1.0f / (2.0f* m)) * sum;

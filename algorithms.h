@@ -1,6 +1,7 @@
 #include "kernels.h"
 #include <stdlib.h>
 #include <bits/stdc++.h>
+#include "community_measures.cu"
 
 using namespace std;
 #define MIN(a,b) ((a > b)? b:a)		//Function to return the minium
@@ -582,9 +583,10 @@ int bc_bfs(
 		label:
 		totalNeighbours: Size of the array neigh
 */
-int findLabel(int* labelsNeighbours,
-			  int label,
-			  int totalNeighbours)
+int findLabel(
+			int* labelsNeighbours,
+			int label,
+			int totalNeighbours)
 {
 	for(int n = 0; n < totalNeighbours; n++){
 		if(label == labelsNeighbours[n]){
@@ -723,7 +725,8 @@ int* labelPropagationSequential(
 	int node;
 
 	/* initialize random seed: */
-	srand (time(NULL));
+	double seed = 0;//time(NULL);
+	srand (seed);
 
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
@@ -731,13 +734,27 @@ int* labelPropagationSequential(
 		nodes[i] = i;
 	}
 
-	cout<<"Begin Label propagation:"<<endl;
-	int t = 0;
+	cout<<"Begin Label propagation sec:"<<endl;
+	int t = 0, t2 = 0;
+	float mod = 0;
+	int com = 0, com2 = 0;
+	int changes = 0;
+	int minchange = nNodes;
+
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
+		com = countCommunities(labels, nNodes);
+		printf("%d \t %f \t %d \t %d\n", t, mod, com, changes);
+		//printf("%d \t %d \t %d\n", t, com, changes);
+		if(changes < minchange && changes != 0){
+			minchange = changes;
+			com2 = com;
+			t2 = t;
+		}
+		changes = 0;
 
-		thereAreChanges =  false;
+		thereAreChanges = false;
 		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
-
 		//printarray(labels, nNodes);
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];
@@ -746,124 +763,20 @@ int* labelPropagationSequential(
 			if(maximumLabel != labels[node]){
 				labels[node] = maximumLabel;
 				thereAreChanges = true;
+				changes++;
 			}
 		}
 		t++;
+		if(t > nNodes)
+			break;
 	}
+
+	printf("it %d, minchange %d, communities %d",t2 , minchange, com2);
 	return labels;
 }
 
 
 //-----------------------------Communities Parallel---------------------------------------
-
-
-/**
-	Returns the label occurring with the highest frequency among neighbours in a way parallel.
-	
-	Parameters.
-	costs: Costs of the edges
-	tails: Array of neighbors of the nodes
-	indexs: Indexs of tails array
-	nNodes: Number of nodes
-	nEdges: Number of edges
-*/
-/*					int node,
-					int* tails, 
-					int* indexs,
-					int* labels, 
-					const int nNodes,
-					const int nEdges)
-{
-	int NUMBER_OF_THREADS = 32;
-	int SHARED_MEMORY_SIZE = (32 + 16) * nNodes * 4;
-	int numberOfBlocks = 256;
-	int nTPB = MAX_THREADS_PER_BLOCK;
-	int MAX_KERNEL_BLOCKS = 30;
-
-	//Get their neighboors
-	int neighbor = -1;
-	int index = indexs[node];
-	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
-	int neighbours_count = (nextIndex - index < 0)?1 : nextIndex - index; 
-
-	int *neighbours_labels = new int[neighbours_count];
-	int *h_histo_labels = new int[nNodes * numberOfBlocks];
-	int *histo_final = new int[nNodes];
-
-	int i = 0;
-	for(int tail = index; tail < nextIndex; tail++){
-		neighbor = tails[tail];
-		if(neighbor < nNodes){
-			neighbours_labels[i] = labels[neighbor];
-			i++;
-		}
-	}
-
-	for(i = 0; i < nNodes; i++){
-		h_histo_labels[i] = 0;
-	}
-	
-	//GPU memory pointers to count the labels
-	int *d_histo_labels;
-	int *d_neighbours_labels;
-
-	cudaMalloc((void **) &d_neighbours_labels, neighbours_count * sizeof(int));
-	cudaMalloc((void **) &d_histo_labels, nNodes * numberOfBlocks * sizeof(int));
-
-	cudaMemcpy(d_neighbours_labels, neighbours_labels, neighbours_count * sizeof(int), cudaMemcpyHostToDevice); 
-	cudaMemcpy(d_histo_labels, h_histo_labels, nNodes * numberOfBlocks * sizeof(int), cudaMemcpyHostToDevice);
-
-	lp_count_labels_kernel<<<numberOfBlocks, NUMBER_OF_THREADS, SHARED_MEMORY_SIZE >>>(d_histo_labels, d_neighbours_labels, nNodes, neighbours_count);
-	check_CUDA_Error("ERROR in counters labels");
-
-	cudaMemcpy(h_histo_labels, d_histo_labels, nNodes * numberOfBlocks * sizeof(int), cudaMemcpyDeviceToHost);
-	for(i = 1; i < nNodes; i++){
-		histo_final[i] = 0;
-		for(int j = 1; j < numberOfBlocks; j++){
-			histo_final[i] += h_histo_labels[j * nNodes + i]; 
-		}
-	}
-
-	cudaFree(d_neighbours_labels);
-	cudaFree(d_histo_labels);
-
-	//--------------------------------------------Kernel 2------------------------------------------------------
-	//GPU memory pointers to get the max id
-	int *d_n_labels;
-	cudaMalloc((void **) &d_n_labels, nNodes * sizeof(int));
-	cudaMemcpy(d_n_labels, histo_final, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-
-	int MAX_BLOCKS = ((nNodes / nTPB) + 1);
-	int max_index = 0, *d_max_index;
-	volatile int *d_blk_vals;
-	volatile int *d_blk_idxs;
-	int *d_blk_num, h_blk_num = 0;
-
-	cudaMalloc(&d_max_index, sizeof(int));
-	cudaMalloc(&d_blk_num, sizeof(int));
-	cudaMemcpy(d_blk_num, &h_blk_num, sizeof(int), cudaMemcpyHostToDevice);
-
-	cudaMalloc(&d_blk_vals, MAX_BLOCKS * sizeof(int));
-	cudaMalloc(&d_blk_idxs, MAX_BLOCKS * sizeof(int));
-
-	lp_max_label_kernel<<<MIN(MAX_KERNEL_BLOCKS, ((nNodes + nTPB-1)/nTPB)), nTPB>>>(d_n_labels, 
-																					nNodes, 
-																					d_max_index, 
-																					time(NULL), 
-																					d_blk_vals, 
-																					d_blk_idxs, 
-																					d_blk_num,
-																					nTPB);
-	cudaMemcpy(&max_index, d_max_index, sizeof(int), cudaMemcpyDeviceToHost);
-
-	int maximumLabel = (max_index < nNodes)? histo_final[max_index] : 0;
-
-	cudaFree(d_n_labels);
-	cudaFree(d_max_index);
-	cudaFree(d_blk_num);
-
-	return maximumLabel;
-}*/
 
 /**
 	Apply the Label propagation algorithm in the parallel way
@@ -916,6 +829,7 @@ int* labelPropagationParallel(
 	cudaMemcpy(d_indexs, indexs, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
+	int t = 0;
 	while(thereAreChanges){//until a node dont have the maximum label of their neightbors
 
 		thereAreChanges =  false;
@@ -939,7 +853,10 @@ int* labelPropagationParallel(
 
 
 		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(bool), cudaMemcpyDeviceToHost);
+		t++;
 		//cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		if(t > nNodes)
+			break;
 	}
 	cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 

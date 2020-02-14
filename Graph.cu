@@ -302,7 +302,7 @@ int* Graph::getRealCommunities(string truedata){
 	string label;
 
 	ifstream dataset;
-	dataset.open(filename);
+	dataset.open(truedata);
 
 	//Read the datafile and create the nodes in the same time with the edges
 	if (dataset.is_open()) {
@@ -313,8 +313,8 @@ int* Graph::getRealCommunities(string truedata){
 				node = words[0];
 				label = words[1];
 
-				node = this->removeWhiteSpaces(nodei);
-				label = this->removeWhiteSpaces(nodej);
+				node = this->removeWhiteSpaces(node);
+				label = this->removeWhiteSpaces(label);
 
 				if(mp.find(node) == mp.end()){ //The node not exist in the map then create it
 					mp.insert({node, label});
@@ -327,7 +327,19 @@ int* Graph::getRealCommunities(string truedata){
 		return nullptr;
 	}
 
-	return nullptr;
+	int *trueLabels = new int[this->getNumberNodes()];
+	int id;
+
+	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
+		//itr->first
+		//itr->second
+		id = this->getId(itr->first);
+		if(id >= 0 && id < this->getNumberNodes()){
+			trueLabels[id] = stoi(itr->second);
+		}
+	}
+
+	return trueLabels;
 }
 
 /**
@@ -663,6 +675,17 @@ bool Graph::createFromFileNET(string filename, int sorted) {
 
     delete[] indexs_aux;
 	return true;
+}
+
+__host__ 
+int Graph::getId(string name){
+	for (auto itr = this->nodes.begin(); itr != this->nodes.end(); ++itr) {
+		if(itr->first == name){
+			return itr->second;
+		}
+	}
+
+	return -1;
 }
 
 __host__ 

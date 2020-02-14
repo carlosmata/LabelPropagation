@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 #include "algorithms.h"
-#include "community_measures.cu"
+//#include "community_measures.cu"
 
 using namespace std;
 
@@ -50,7 +50,7 @@ void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
 			 << value << endl;
 	}*/
 
-	cout << "\nModularity: "<< getModularity(g, communities);
+	cout << "\nModularity: "<< getModularity(g->getTails(), g->getIndexs(), g->getNumberNodes(), g->getNumberEdges(), communities);
 	if(truedata != ""){
 		int *realCommunities = g->getRealCommunities(truedata);
 		if(realCommunities != nullptr)
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
 		type = atoi(argv[2]);
 		sorted = atoi(argv[3]);
 	}
-	if(argc == 5){//Add the type of the filename and a sorted way desc-asc
+	if(argc == 5){//Add the type of the filename and a sorted way desc-asc and a file with true data
 		filename = argv[1];
 		type = atoi(argv[2]);
 		sorted = atoi(argv[3]);
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g, truedata);
-		//label_propagation_parallel(g);
+		//label_propagation_parallel(g, truedata);
 	}
 	else
 		cout << "Data null in the dataset";
