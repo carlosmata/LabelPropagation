@@ -742,7 +742,7 @@ int* labelPropagationSequential(
 	int minchange = nNodes;
 
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
-		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
+		mod = getModularity(tails, indexs, nNodes, nEdges, labels);
 		com = countCommunities(labels, nNodes);
 		printf("%d \t %f \t %d \t %d\n", t, mod, com, changes);
 		//printf("%d \t %d \t %d\n", t, com, changes);

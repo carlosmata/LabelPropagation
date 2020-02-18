@@ -50,11 +50,19 @@ void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
 			 << value << endl;
 	}*/
 
-	cout << "\nModularity: "<< getModularity(g->getTails(), g->getIndexs(), g->getNumberNodes(), g->getNumberEdges(), communities);
+	cout << "\nModularity: "<< getModularity(g->getTails(), g->getIndexs(), g->getNumberNodes(), g->getNumberEdges(), communities) << endl;
 	if(truedata != ""){
 		int *realCommunities = g->getRealCommunities(truedata);
-		if(realCommunities != nullptr)
-			cout << "\nNMI: "<< getNMI(communities, realCommunities, g->getNumberNodes());
+
+		for(int i = 0; i < nNodes; i++){
+			cout << i << "\t" << realCommunities[i] << endl;
+		}
+
+		if(realCommunities != nullptr){
+			float nmi = getNMI(communities, realCommunities, g->getNumberNodes());
+			cout << "\nNMI: "<< nmi;
+			printf("\nNMI: %f\n", nmi);
+		}
 	}
 	
 	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
@@ -157,9 +165,13 @@ void label_propagation_sequential(Graph *g, string truedata){
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
 	
-	printCommunities(g, nNodes, labels, truedata);
+	int* labels_renamed = g->renameLabels(labels);
+	printCommunities(g, nNodes, labels_renamed, truedata);
+	//print in a file
+	g->saveCommunitiesinFile("output.groups", labels_renamed);
 
 	delete[] labels;
+	delete[] labels_renamed;
 
 	cout << "Secuencial Label propagation time taken by program is : " << fixed
 		 << time_taken << setprecision(9);

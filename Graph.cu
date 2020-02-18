@@ -29,8 +29,6 @@ Graph::Graph(string filename, int type, int sorted) {
 		//create the nodes
 		this->addEdges(filename);
 	}
-
-
 }
 
 __host__
@@ -64,9 +62,6 @@ Graph::Graph(float* costs, int* tails, int* indexs, int nEdges, int nNodes) {
 
 __host__ 
 Graph::~Graph() {
-	//delete[] edges_cost;
-    //delete[] edges_tail;
-    //delete[] indexs;
     delete[] centrality;
 }
 /**
@@ -81,18 +76,6 @@ int Graph::getNumberNodes() {
 */
 __host__
 void Graph::setNodeData(float* costs, int* tails, int* indexs, int nEdges, int nNodes){    
-    //this->edges_cost = new float[nEdges]; 
-    //this->edges_tail = new int[nEdges]; 
-    //this->indexs = new int[nNodes]; 
-    
-    //for(int i = 0; i < nEdges; i++){
-    //	this->edges_cost[i] = costs[i];
-    //	this->edges_tail[i] = tails[i];
-    //}
-    
-    //for(int i = 0; i < nNodes; i++){
-    //	this->indexs[i] = indexs[i];
-    //}
 	this->edges_cost = costs; 
     this->edges_tail = tails;
     this->indexs = indexs; 
@@ -123,7 +106,8 @@ int* Graph::getIndexs(){
 /*
 	Get the array of graph's nodes
 */
-__host__ int* Graph::getNodesArray(){
+__host__ 
+int* Graph::getNodesArray(){
 	int *v = new int[this->numberEdges];
 	int start, end;
 
@@ -302,11 +286,14 @@ int* Graph::getRealCommunities(string truedata){
 	string label;
 
 	ifstream dataset;
+	cout << "True communities file "<< truedata << endl;
 	dataset.open(truedata);
 
 	//Read the datafile and create the nodes in the same time with the edges
 	if (dataset.is_open()) {
+		cout << "opened" << endl;
 		while (getline(dataset, line)) {
+			cout << "new line" << endl;
 			if (line.at(0) != '#') {
 				words = split(line, delimiter);
 
@@ -329,17 +316,75 @@ int* Graph::getRealCommunities(string truedata){
 
 	int *trueLabels = new int[this->getNumberNodes()];
 	int id;
+	cout << "\nfile true data readed " << mp.size() << endl;
 
 	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
 		//itr->first
 		//itr->second
 		id = this->getId(itr->first);
+		//cout << "id " << itr->second << endl;
 		if(id >= 0 && id < this->getNumberNodes()){
+			//cout << "second " << itr->second << endl;
 			trueLabels[id] = stoi(itr->second);
 		}
 	}
 
 	return trueLabels;
+}
+
+
+__host__ 
+bool Graph::saveCommunitiesinFile(string filename, int* labels)
+{
+	ofstream outdata;
+	outdata.open(filename); //open the file
+
+	if(!outdata){
+		cerr << "Error: file could not be opened" << endl;
+		return false;
+	}
+
+	//int numCommunities = 0;
+	//int* communities =  this->getCommunities(labels, &numCommunities);
+	int community  = 0;
+	for (int i=0; i < this->getNumberNodes(); i++){
+		community = labels[i]; //this->getRealCommunity(communities, labels[i], numCommunities) + 1;
+		//cout << community << endl;
+		outdata << this->getName(i) << "\t" << community << endl;
+	}
+
+	outdata.close();
+
+	return true;
+}
+
+__host__
+int Graph::getRealCommunity(int* communities, int label, int numCommunities){
+	for(int i = 0; i < numCommunities; i++){
+		//cout << communities[i] << " label:"<< label << " i:" << i << endl;
+		if(communities[i] == label){
+			return i;
+		}
+	}
+	//cout << endl;
+
+	return -1;
+}
+
+__host__ 
+int* Graph::renameLabels(int* labels)
+{	
+	int numCommunities = 0;
+	int* communities =  this->getCommunities(labels, &numCommunities);
+	int community  = 0;
+	int *renamed = new int[this->getNumberNodes()];
+
+	for (int i=0; i < this->getNumberNodes(); i++){
+		community = this->getRealCommunity(communities, labels[i], numCommunities) + 1;
+		renamed[i] = community;
+	}
+
+	return renamed;
 }
 
 /**
@@ -1179,6 +1224,26 @@ int Graph::getNextIndex(int source) {
 	}
 
 	return edges_size;
+}
+
+
+/**
+    Return an array thar contains the communities labels
+*/
+__host__
+int* Graph::getCommunities(int *labels, int* numCommunities){
+	int nNodes = this->getNumberNodes();
+    std::set<int> s(labels, labels + nNodes);
+    int* communities = new int[s.size()];
+
+    *numCommunities = s.size();
+    int i = 0;
+    for(int community: s){
+        communities[i] = community;
+        i++;
+    }
+
+    return communities;
 }
 
 //---------------------------------------------------------------------------------

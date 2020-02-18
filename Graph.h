@@ -65,6 +65,10 @@ class Graph
         __host__ string removeWhiteSpaces(string s);
         __host__ int* getRealCommunities(string truedata);
 
+        __host__ bool saveCommunitiesinFile(string filename, int* labels);
+        __host__ int* getCommunities(int *labels, int* numCommunities);
+        __host__ int* renameLabels(int* labels);
+
         //To centrality
         float *centrality = nullptr;
         map<string, int> nodes;
@@ -97,6 +101,7 @@ class Graph
         __host__ __device__ int getNextIndex(int source);
         __host__ void resetCentrality(int source);
         __host__ __device__ void incrementCentrality(int source, float increment);
+        __host__ int getRealCommunity(int* communities, int label, int numCommunities);
         
 };
 
