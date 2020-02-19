@@ -54,14 +54,13 @@ void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
 	if(truedata != ""){
 		int *realCommunities = g->getRealCommunities(truedata);
 
-		for(int i = 0; i < nNodes; i++){
+		/*for(int i = 0; i < nNodes; i++){
 			cout << i << "\t" << realCommunities[i] << endl;
-		}
+		}*/
 
 		if(realCommunities != nullptr){
 			float nmi = getNMI(communities, realCommunities, g->getNumberNodes());
 			cout << "\nNMI: "<< nmi;
-			printf("\nNMI: %f\n", nmi);
 		}
 	}
 	
@@ -278,7 +277,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g, truedata);
-		//label_propagation_parallel(g, truedata);
+		label_propagation_parallel(g, truedata);
 	}
 	else
 		cout << "Data null in the dataset";

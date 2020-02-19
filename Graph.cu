@@ -286,14 +286,14 @@ int* Graph::getRealCommunities(string truedata){
 	string label;
 
 	ifstream dataset;
-	cout << "True communities file "<< truedata << endl;
+	//cout << "True communities file "<< truedata << endl;
 	dataset.open(truedata);
 
 	//Read the datafile and create the nodes in the same time with the edges
 	if (dataset.is_open()) {
-		cout << "opened" << endl;
+		//cout << "opened" << endl;
 		while (getline(dataset, line)) {
-			cout << "new line" << endl;
+			//cout << "new line: " << line << endl;
 			if (line.at(0) != '#') {
 				words = split(line, delimiter);
 
@@ -316,7 +316,7 @@ int* Graph::getRealCommunities(string truedata){
 
 	int *trueLabels = new int[this->getNumberNodes()];
 	int id;
-	cout << "\nfile true data readed " << mp.size() << endl;
+	//cout << "\nfile true data readed " << mp.size() << endl;
 
 	for (auto itr = mp.begin(); itr != mp.end(); ++itr) { 
 		//itr->first

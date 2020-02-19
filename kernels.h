@@ -282,7 +282,7 @@ int lp_get_maximum_label(
 					int node,
 					int* tails, 
 					int* indexs,
-					int* labels, 
+					int* labels,
 					curandState_t state,
 					const int nNodes,
 					const int nEdges
@@ -362,11 +362,28 @@ int lp_get_maximum_label(
 
 
 __global__
+void lp_copy_array(
+				int* array1,
+				int* array2,
+				int tam
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < tam){
+		array1[idx] = array2[idx];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
+__global__
 void lp_compute_maximum_labels_kernel(
 						int* nodes,					//Array of nodes (permutation)
 						int* tails,					//edges
 						int* indexs,				//edges
 						int* labels,				//Array of label's nodes 
+						int* labels_aux,				//Array of label's nodes 
 						bool* thereAreChanges,		//flag
 						int seed,					//time(NULL)
 						const int nNodes,			//number of nodes
@@ -389,9 +406,10 @@ void lp_compute_maximum_labels_kernel(
 
 		while(idx < nNodes){
 			node = nodes[idx];
-			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels, state, nNodes, nEdges);
+			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, nNodes, nEdges);
 			if(maximumLabel != labels[node]){
-				labels[node] = maximumLabel;
+				atomicExch(&labels[node], maximumLabel);
+				//labels[node] = maximumLabel;
 				*thereAreChanges = true;
 			}
 			idx += blockDim.x * gridDim.x;
