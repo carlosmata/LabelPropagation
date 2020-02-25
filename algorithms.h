@@ -21,71 +21,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 //----------------------------------------------------------------------------------------
 //-------------------------------Centrality Sequential------------------------------------
-__host__ 
-void dijkstraSequential(
-				float* costs, 
-				int* tails, 
-				int* indexs, 
-				float* centrality,
-				const int nNodes,
-				const int nEdges)
-{
-	int cost = 0, totalcost = 0;
-	int node = 0, endpoint = 0;
-	int index, nextIndex;
-	
-	int *visited = new int[nNodes]; 
-	int *distance = new int[nNodes];  
-	List *parents = new List[nNodes];
-
-
-	for(int source = 0; source < nNodes; source++){
-		//Inicializar arrays
-		for(int i = 0; i < nNodes; i++){
-			visited[i] = 0;
-			distance[i] = INF;
-			parents[i].clear();
-		}
-		distance[source] = 0;
-		
-	 	//Iterate in the node
-		while ((node = getSmallDistance(visited, distance, nNodes)) != -1) {
-			index = indexs[node];
-			nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges;//getNextIndex(node, indexs, nNodes, nEdges);
-
-			if(index != -1){
-				for (int i = index; i < nextIndex ; i++) { //regresar el tamaño de los endpoints
-					endpoint = tails[i];
-					
-					if (endpoint != -1 && visited[endpoint] != 1) {
-						cost = costs[i];
-						totalcost = cost + distance[node];
-						if (totalcost < distance[endpoint]) { //Add only one path
-							distance[endpoint] = totalcost;
-							parents[endpoint].clear();
-							parents[endpoint].push_back(node);
-						}
-						else if (totalcost == distance[endpoint]) { //Add other shortest path
-							parents[endpoint].push_back(node);
-						}
-					}
-				}
-			}
-			visited[node]= 1;
-		}
-
-		//Calcular la centralidad
-		for (int nodo_j = 0; nodo_j < nNodes; nodo_j++) {
-			computeCentralityPath(source, nodo_j, parents, centrality);
-		}
-	}
-
-	delete[] visited;
-	delete[] distance;
-	delete[] parents;
-}
-
-__host__
 float* brandesSequential(
 				float* costs, 
 				int* tails, 
@@ -174,155 +109,6 @@ float* brandesSequential(
 	}
 
 	return centrality;
-}
-
-float* GPUFANSequential(
-					float* costs, 
-					int* tails, 
-					int* indexs, 
-					const int nNodes,
-					const int nEdges)
-{
-	int n_nodes = nNodes;
-	int index, nextIndex;
-	float *centrality = new float[nNodes]; 
-
-	for(int i = 0;i < nNodes; i++){
-		centrality[i] = 0;
-	}
-
-	for(int i=0; i<n_nodes; i++){
-		stack<int> s;
-		list<int> l;
-		vector<list<int> > vli(n_nodes, l);
-		vector<int> sigma(n_nodes, 0);
-		vector<int> d(n_nodes,-1);
-		
-		sigma[i] = 1;
-		d[i] = 0;
-		
-		queue<int> q;
-
-		q.push(i);
-		while(!q.empty()){
-			int v = q.front();
-			q.pop();
-			s.push(v);
-
-			index = indexs[v];
-			nextIndex = (v + 1 < nNodes)?indexs[v + 1]:nEdges; //getNextIndex(v, indexs, n_nodes, nEdges);
-			for(int tail = index; tail < nextIndex; tail++){
-				int w = tails[tail];;
-				if(d[w] < 0){
-					q.push(w);
-					d[w]=d[v] + 1;
-				}
-				if(d[w] == d[v] + 1){
-					sigma[w]+=sigma[v];
-					vli[w].push_back(v);
-				}
-			}
-		}
-		vector<float> delta(n_nodes,0);
-		while(!s.empty()){
-			int w = s.top();
-			s.pop();
-			list<int>::iterator lit;
-			for(lit=vli[w].begin(); lit!=vli[w].end(); lit++){
-				int v = *lit;
-				delta[v] += (1.0 * sigma[v] / sigma[w] * (1 + delta[w]));
-			}
-			if(w!=i)
-				centrality[w]+=delta[w];
-		}
-	}
-
-	return centrality;
-}
-
-float* hybric_BCSequential( 
-					float* costs, 
-					int* tails, 
-					int* indexs, 
-					const int nNodes,
-					const int nEdges)
-{
-	//g.R = (rows)    indexs
-	//g.C = (columns) tails 
-
-	//std::vector<float> bc(nNodes,0);
-
-	float *bc = new float[nNodes]; 
-
-	for(int i = 0;i < nNodes; i++){
-		bc[i] = 0;
-	}
-
-	int end = nNodes;
-	//std::set<int>::iterator it = source_vertices.begin();
-
-	for(int k=0; k<end; k++)
-	{
-		int i = k;
-		std::queue<int> Q;
-		std::stack<int> S;
-		std::vector<int> d(nNodes,INT_MAX);
-		d[i] = 0;
-		std::vector<unsigned long long> sigma(nNodes,0);
-		sigma[i] = 1;
-		std::vector<float> delta(nNodes,0);
-		Q.push(i);
-
-		while(!Q.empty())
-		{
-			int v = Q.front();
-			Q.pop();
-			S.push(v);
-			int start = indexs[v];/*g.R[v]*/
-			int end = (v + 1 < nNodes)?indexs[v + 1]:nEdges;/*g.R[v+1]*/
-			for(int j = start; j < end; j++)
-			{
-				int w = tails[j]; //g.C[j];
-				if(d[w] == INT_MAX)
-				{
-					Q.push(w);
-					d[w] = d[v] + 1;
-				}
-				if(d[w] == (d[v] + 1))
-				{
-					sigma[w] += sigma[v];
-				}
-			}
-		}
-
-		while(!S.empty())
-		{
-			int w = S.top();
-			S.pop();
-	
-			int start = indexs[w];/*g.R[v]*/
-			int end = (w + 1 < nNodes)?indexs[w + 1]:nEdges;/*g.R[v+1]*/
-			for(int j = start; j < end; j++)
-			{
-				int v = tails[j];///g.C[j];
-				if(d[v] == (d[w] - 1))
-				{
-					delta[v] += (sigma[v]/(float)sigma[w])*(1+delta[w]);
-				}
-			}	
-			
-			if(w != i)
-			{
-				bc[w] += delta[w];
-			}
-		}
-	}
-
-	/*for(int i=0; i < nNodes; i++)
-	{
-		bc[i] /= 2.0f; //Undirected edges are modeled as two directed edges, but the scores shouldn't be double counted.
-	}*/
-	return bc;
 }
 //-------------------------------Centrality Parallel-------------------------------------
 void brandesParallel( 
@@ -457,122 +243,6 @@ void brandesParallel(
 	cudaFree(d_p);
 	cudaFree(d_dist);
 }
-
-int bc_bfs(
-			int n_count, 
-			int e_count, 
-			int * h_v, 
-			int *h_e, 
-			float *h_bc)
-{
-
-	int *d_v, *d_e;
-	cudaCheckError(cudaMalloc((void **)&d_v, sizeof(int)*e_count));
-	cudaCheckError(cudaMalloc((void **)&d_e, sizeof(int)*e_count));
-
-	cudaCheckError(cudaMemcpy(d_v, h_v, sizeof(int)*e_count, cudaMemcpyHostToDevice));
-	cudaCheckError(cudaMemcpy(d_e, h_e, sizeof(int)*e_count, cudaMemcpyHostToDevice));
-
-	int *d_d, *d_sigma;
-	float *d_delta;
-	/* use unsigned int array to implement bit array */
-	unsigned int *d_p; /* two dimensional predecessor  array (nxn)*/ 
-	int *d_dist;
-	float *d_bc;
-
-	cudaCheckError(cudaMalloc((void **)&d_d, sizeof(int)*n_count));
-	cudaCheckError(cudaMalloc((void **)&d_sigma, sizeof(int)*n_count)); 
-	cudaCheckError(cudaMalloc((void **)&d_delta, sizeof(float)*n_count)); 
-	unsigned long long total_bits=(unsigned long long)n_count*n_count;
-	unsigned int num_of_ints=BITS_TO_INTS(total_bits);
-
-	cudaCheckError(cudaMalloc((void **)&d_p, sizeof(unsigned int)*num_of_ints)); 
-	cudaCheckError(cudaMalloc((void **)&d_dist, sizeof(int)));
-	cudaCheckError(cudaMalloc((void **)&d_bc, sizeof(float)*n_count)); 
-
-	cudaCheckError(cudaMemcpy(d_bc, h_bc, sizeof(float)*n_count, cudaMemcpyHostToDevice));
-
-	int *h_d;
-	int h_sigma_0=1;
-	h_d=(int *)malloc(sizeof(int)*n_count);
-
-	for(int i=0; i<n_count; i++){
-		for(int j=0; j<n_count; j++){
-			h_d[j]=-1;
-		}
-		h_d[i]=0;
-		cudaCheckError(cudaMemcpy(d_d, h_d, sizeof(int)*n_count, cudaMemcpyHostToDevice));
-		cudaCheckError(cudaMemset(d_sigma, 0, sizeof(int)*n_count));
-		cudaCheckError(cudaMemcpy(&d_sigma[i],&h_sigma_0, sizeof(int), cudaMemcpyHostToDevice));
-		cudaCheckError(cudaMemset(d_delta, 0, sizeof(int)*n_count));
-		cudaCheckError(cudaMemset(d_p, 0, sizeof(unsigned int)*num_of_ints));
-		int threads_per_block=e_count;
-		int blocks=1;
-		if(e_count>MAX_THREADS_PER_BLOCK){
-			blocks = (int)ceil(e_count/(float)MAX_THREADS_PER_BLOCK); 
-			threads_per_block = MAX_THREADS_PER_BLOCK; 
-		}
-		dim3 grid(blocks);
-		dim3 threads(threads_per_block);
-		int threads_per_block2=n_count;
-		int blocks2=1;
-		if(n_count>MAX_THREADS_PER_BLOCK){ 
-			blocks2 = (int)ceil(n_count/(double)MAX_THREADS_PER_BLOCK); 
-			threads_per_block2 = MAX_THREADS_PER_BLOCK; 
-		}
-		dim3 grid2(blocks2);
-		dim3 threads2(threads_per_block2);
-
-		bool h_continue;
-		bool *d_continue;
-		cudaMalloc((void **)&d_continue, sizeof(bool));
-		int h_dist=0;
-		cudaCheckError(cudaMemset(d_dist, 0, sizeof(int)));
-		// BFS  
-		do{
-			h_continue=false;
-			cudaCheckError(cudaMemcpy(d_continue, &h_continue, sizeof(bool), cudaMemcpyHostToDevice));
-			bc_bfs_kernel<<<grid,threads>>>(d_v, d_e, d_d, d_sigma, d_p, d_continue, d_dist, n_count, e_count);
-			check_CUDA_Error("Kernel bc_bfs_kernel invocation");
-			cudaCheckError(cudaDeviceSynchronize());
-			h_dist++; 
-			cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
-			cudaCheckError(cudaMemcpy(&h_continue, d_continue, sizeof(bool), cudaMemcpyDeviceToHost));
-		}while(h_continue);   
-		//cout << "h_dist: " << h_dist;
-
-		h_continue=false;
-		//Back propagation
-		cudaCheckError(cudaMemcpy(&h_dist, d_dist, sizeof(int), cudaMemcpyDeviceToHost));
-		do{
-			bc_bfs_back_prop_kernel<<<grid, threads>>>(d_v, d_e, d_d, d_sigma, d_delta, d_p, d_dist, n_count, e_count);
-			check_CUDA_Error("Kernel bc_bfs_back_prop_kernel invocation");
-			cudaCheckError(cudaDeviceSynchronize());
-			bc_bfs_back_sum_kernel<<<grid2, threads2>>>(i, d_dist, d_d,  d_delta, d_bc, n_count);
-			check_CUDA_Error("Kernel bc_bfs_back_sum_kernel invocation");
-			cudaCheckError(cudaDeviceSynchronize());
-			h_dist--;
-			cudaCheckError(cudaMemcpy(d_dist, &h_dist, sizeof(int), cudaMemcpyHostToDevice));
-		}while(h_dist>1);
-	}
-	cudaCheckError(cudaMemcpy(h_bc, d_bc, sizeof(float)*n_count, cudaMemcpyDeviceToHost));
-
-	/*for(int i= 0; i < n_count; i++){
-		cout << "d_bc: " << h_bc[i]<< endl;
-	}*/
-
-
-	free(h_d);
-	cudaFree(d_v);
-	cudaFree(d_e);
-	cudaFree(d_d);
-	cudaFree(d_sigma);
-	cudaFree(d_delta);
-	cudaFree(d_p);
-	cudaFree(d_dist);
-	return 0;
-}
-
 //---------------------------------------------------------------------------------------
 //_----------------------------Communities Sequential------------------------------------
 /**
@@ -612,7 +282,8 @@ int getMaximumLabel(int node,
 					int* indexs,
 					int* labels, 
 					const int nNodes,
-					const int nEdges)
+					const int nEdges,
+					int *numberLabelMax)
 {
 	//Get their neighboors
 	int neighbor = -1;
@@ -666,6 +337,7 @@ int getMaximumLabel(int node,
 	//Select a label at random
 	int posRandom = rand() % indexMaximumLabels;
 	int maximumLabel = maximumLabels[posRandom];
+	*numberLabelMax = numberMax;
 
 	delete[] labelsNeighbours;
 	delete[] countersLabels;
@@ -716,9 +388,11 @@ int* labelPropagationSequential(
 				int* tails, 
 				int* indexs, 
 				const int nNodes,
-				const int nEdges)
+				const int nEdges,
+				bool synchronous)
 {
 	int *labels = new int[nNodes];
+	int *countLabels = new int[nNodes];
 	int *labelsAux = new int[nNodes];
 	int *nodes = new int[nNodes];
 	bool thereAreChanges = true;
@@ -733,14 +407,25 @@ int* labelPropagationSequential(
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
 		nodes[i] = i;
+		countLabels[i] = 0;
 	}
 
-	cout<<"Begin Label propagation sec:"<<endl;
-	int t = 0, t2 = 0;
-	float mod = 0;
-	int com = 0, com2 = 0;
-	int changes = 0;
-	int minchange = nNodes;
+	cout<< "Begin Label propagation sequential ";
+	if(synchronous){
+		cout<< "synchronous:" << endl; 
+	}
+	else{
+		cout<< "asynchronous:" << endl; 
+	}
+
+	int t = 0;
+	int numberLabelMax = 0;
+
+	//int changes = 0;
+	//int t2 = 0;
+	//float mod = 0;
+	//int com = 0, com2 = 0;
+	//int minchange = nNodes;
 
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
@@ -752,23 +437,36 @@ int* labelPropagationSequential(
 		//	com2 = com;
 		//	t2 = t;
 		//}
-		changes = 0;
+		//changes = 0;
 
 		thereAreChanges = false;
-		getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
+
+		if(!synchronous){ //asynchronous
+			getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
+		}
+		
 		//printarray(labels, nNodes);
-		for(int i = 0; i < nNodes; i++){
-			labelsAux[i] = labels[i];
+		if(synchronous){
+			for(int i = 0; i < nNodes; i++){
+				labelsAux[i] = labels[i];
+			}
 		}
 
 		for(int i = 0; i < nNodes; i++){ //random permutation of Nodes
 			node = nodes[i];
 			//find the maximum label of their neightbors
-			maximumLabel = getMaximumLabel(node, tails, indexs, labelsAux, nNodes, nEdges);
-			if(maximumLabel != labels[node]){
+			if(synchronous){
+				maximumLabel = getMaximumLabel(node, tails, indexs, labelsAux, nNodes, nEdges, &numberLabelMax);
+			}
+			if(!synchronous){ //asynchronous
+				maximumLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges, &numberLabelMax);
+			}
+
+			if(maximumLabel != labels[node] && countLabels[node] != numberLabelMax){
 				labels[node] = maximumLabel;
+				countLabels[node] = numberLabelMax;
 				thereAreChanges = true;
-				changes++;
+				//changes++;
 			}
 		}
 		t++;
@@ -802,7 +500,6 @@ int* labelPropagationParallel(
 {
 	//int NUMBER_OF_THREADS = 32;
 	//int SHARED_MEMORY_SIZE = (32 + 16) * nNodes * 4;
-
 	//Number of threads
 	int nTPB = MAX_THREADS_PER_BLOCK;											//Threads in a block  256
 	int MAX_KERNEL_BLOCKS = 30;													//Max blocks in a Grid
@@ -820,15 +517,12 @@ int* labelPropagationParallel(
 
 	//GPU memory
 	int *d_labels;
-	int *d_labels_aux;
 	int *d_nodes;
 	int *d_tails;
 	int *d_indexs;
 	bool *d_thereAreChanges;
 
 	cudaMalloc(&d_labels, nNodes * sizeof(int));
-	cudaMalloc(&d_labels_aux, nNodes * sizeof(int));
-
 	cudaMalloc(&d_nodes, nNodes * sizeof(int));
 	cudaMalloc(&d_tails, nEdges * sizeof(int));
 	cudaMalloc(&d_indexs, nNodes * sizeof(int));
@@ -846,15 +540,21 @@ int* labelPropagationParallel(
 		
 		getPermutation(nodes, nNodes); //obtener doble permutacion
 
-
-		cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(bool), cudaMemcpyHostToDevice);
 		cudaMemcpy(d_nodes, nodes, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-		//cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-		lp_copy_array<<<numberOfBlocks, nTPB>>>(
+		/*lp_permutation_kernel<<<numberOfBlocks, nTPB>>>(
+															d_nodes,			//Array of nodes
+															nNodes,		//Number of nodes
+															seed	//Seed to generate random numbers
+														);*/
+		/*lp_copy_array<<<numberOfBlocks, nTPB>>>(
 												d_labels_aux,
 												d_labels,
 												nNodes
-												);
+												);*/
+
+		cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(bool), cudaMemcpyHostToDevice);
+		
+		//cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
 		//Parallel
 		lp_compute_maximum_labels_kernel<<<numberOfBlocks, nTPB>>>(
@@ -862,13 +562,14 @@ int* labelPropagationParallel(
 																	d_tails, 
 																	d_indexs, 
 																	d_labels,
-																	d_labels_aux,
+																	d_labels, 
+																	//d_labels_aux,
 																	d_thereAreChanges, 
 																	seed, 
 																	nNodes,
-																	nEdges
+																	nEdges,
+																	nNodes
 																);
-
 
 		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(bool), cudaMemcpyDeviceToHost);
 		t++;
@@ -879,22 +580,20 @@ int* labelPropagationParallel(
 	cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_labels);
-	cudaFree(d_labels_aux);
 	cudaFree(d_nodes);
 	cudaFree(d_tails);
 	cudaFree(d_indexs);
 	cudaFree(d_thereAreChanges);
 
-	delete nodes;
+	delete[] nodes;
 
 	return labels;
 }
 
-/*
 int* labelPropagationParallel_V2(
-				float* costs, 			//edge's weights 	[nNodes]
-				int* tails, 			//edges 			[nEdges]
-				int* indexs, 			//indexs to edges 	[nNodes]
+				float* costs, 
+				int* tails, 
+				int* indexs, 
 				const int nNodes,
 				const int nEdges)
 {
@@ -904,56 +603,102 @@ int* labelPropagationParallel_V2(
 	//Number of threads
 	int nTPB = MAX_THREADS_PER_BLOCK;											//Threads in a block  256
 	int MAX_KERNEL_BLOCKS = 30;													//Max blocks in a Grid
-	int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, ((nNodes + nTPB - 1)/nTPB));	//Blocks in a Grid
+	//int numberOfThreadsPerBlock = nTPB 
+	//int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, ((nNodes + nTPB - 1)/nTPB));	//Blocks in a Grid
 
 	int *labels = new int[nNodes];
-	int *nodes = new int[nNodes];
+	//int *nodes = new int[nNodes];
+
+	int tamLow = nNodes / 2;
+	int tamHigh = (nNodes % 2 == 0)? nNodes / 2: (nNodes / 2) + 1;
+
+	int blocksLow = MIN(MAX_KERNEL_BLOCKS, ((tamLow + nTPB - 1)/nTPB));
+	int blocksHigh = MIN(MAX_KERNEL_BLOCKS, ((tamHigh + nTPB - 1)/nTPB));
+
+	int *nodesLow = new int[tamLow];
+	int *nodesHigh = new int[tamHigh];
+
 	bool thereAreChanges = true;
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
-		nodes[i] = i;
+		if(i < tamLow){
+			nodesLow[i] = i;
+		}
+		else{
+			nodesHigh[i - tamLow] = i;
+		}
+		
 	}
 
 	//GPU memory
 	int *d_labels;
-	int *d_nodes;
+	int *d_nodesLow;
+	int *d_nodesHigh;
 	int *d_tails;
 	int *d_indexs;
 	bool *d_thereAreChanges;
 
 	cudaMalloc(&d_labels, nNodes * sizeof(int));
-	cudaMalloc(&d_nodes, nNodes * sizeof(int));
+
+	cudaMalloc(&d_nodesLow, tamLow * sizeof(int));
+	cudaMalloc(&d_nodesHigh, tamHigh * sizeof(int));
+
 	cudaMalloc(&d_tails, nEdges * sizeof(int));
 	cudaMalloc(&d_indexs, nNodes * sizeof(int));
 	cudaMalloc(&d_thereAreChanges, sizeof(bool));
 
 	cudaMemcpy(d_tails, tails, nEdges * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_indexs, indexs, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+	
 	cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
 	int t = 0;
+	long seed = time(NULL);
 	while(thereAreChanges){//until a node dont have the maximum label of their neightbors
 
 		thereAreChanges =  false;
-		//Optionally: delete nodes with 1 edge and 0 edges
-		getPermutation(nodes, nNodes); 
+		
+		getPermutation(nodesLow, tamLow); 
+		getPermutation(nodesHigh, tamHigh); 
+
 		cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(bool), cudaMemcpyHostToDevice);
-		cudaMemcpy(d_nodes, nodes, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_nodesLow, nodesLow, tamLow * sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemcpy(d_nodesHigh, nodesHigh, tamHigh * sizeof(int), cudaMemcpyHostToDevice);
 		//cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
 		//Parallel
-		lp_compute_maximum_labels_kernel<<<numberOfBlocks, nTPB>>>(
-																	d_nodes, 
+		lp_compute_maximum_labels_kernel<<<blocksLow, nTPB>>>(
+																	d_nodesLow, 
 																	d_tails, 
 																	d_indexs, 
+																	d_labels,
 																	d_labels, 
+																	//d_labels_aux,
 																	d_thereAreChanges, 
-																	time(NULL), 
-																	nNodes,
-																	nEdges
+																	seed, 
+																	tamLow,
+																	nEdges,
+																	nNodes
 																);
+		check_CUDA_Error("Kernel nodes Low invocation");
+		cudaCheckError(cudaDeviceSynchronize());
 
+		lp_compute_maximum_labels_kernel<<<blocksHigh, nTPB>>>(
+																	d_nodesHigh, 
+																	d_tails, 
+																	d_indexs, 
+																	d_labels,
+																	d_labels, 
+																	//d_labels_aux,
+																	d_thereAreChanges, 
+																	seed, 
+																	tamHigh,
+																	nEdges,
+																	nNodes
+																);
+		check_CUDA_Error("Kernel nodes High invocation");
+		cudaCheckError(cudaDeviceSynchronize());
 
 		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(bool), cudaMemcpyDeviceToHost);
 		t++;
@@ -964,13 +709,15 @@ int* labelPropagationParallel_V2(
 	cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_labels);
-	cudaFree(d_nodes);
+	cudaFree(d_nodesLow);
+	cudaFree(d_nodesHigh);
 	cudaFree(d_tails);
 	cudaFree(d_indexs);
 	cudaFree(d_thereAreChanges);
 
-	delete nodes;
+	delete[] nodesLow;
+	delete[] nodesHigh;
 
 	return labels;
-}*/
+}
 //----------------------------------------------------------------------------------------

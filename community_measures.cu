@@ -3,7 +3,7 @@
 #include <unordered_set>
 
 /**
-	Get the grade of a node
+    Get the grade of a node
 */
 int getGrade(
         int node, 
@@ -68,36 +68,14 @@ float getModularity(int *edges, int *indexs, int nNodes, int nEdges, int *labels
 }
 
 /**
-	Count the number of communities in the sent labels
+    Count the number of communities in the sent labels
 */
 int countCommunities(int *labels, int nNodes){
-	int totalLabels[nNodes];
-	int posLabelN;
-	int itLabelN = 0;
-
-	for(int i = 0;i < nNodes; i++){
-		totalLabels[i] = -1;
-	}
-
-	for(int i = 0;i < nNodes; i++){
-		posLabelN = -1;
-		//find label
-		for(int n = 0; n < nNodes; n++){ //find label
-			if(labels[i] == totalLabels[n]){
-				posLabelN = n;
-				break;
-			}
-		}
-		if(posLabelN == -1){//new label
-			totalLabels[itLabelN] = labels[i];
-			itLabelN++;
-		}
-	}
-
-	return itLabelN;
+    std::unordered_set<int> s(labels, labels + nNodes);
+    return s.size();
 }
 
-/**
+/*
     Return an array thar contains the communities labels
 */
 int* getCommunities(int *labels, int nNodes){
@@ -157,7 +135,6 @@ int sumRow(int** matrix, int row, int columns){
     return sum;
 }
 
-
 /**
     Get the normalized mutual information (NMI) value of the values
 */
@@ -166,14 +143,13 @@ float getNMI(int* labelsCalculated, int* trueLabels, int nNodes){
         return 0;
 
     int cA = countCommunities(trueLabels, nNodes); //Number of real community ---   rows
-    int cB = countCommunities(labelsCalculated, nNodes);		//Number of community calculated  columns
+    int cB = countCommunities(labelsCalculated, nNodes);//Number of community calculated  columns
+    int* realCommunities = getCommunities(trueLabels, nNodes);
+    int* estCommunities = getCommunities(labelsCalculated, nNodes);
+
     int** N = new int*[cA];
     for(int i = 0; i < cA; ++i)
         N[i] = new int[cB];
-
-    int* realCommunities = getCommunities(trueLabels, nNodes);
-    int* estCommunities = getCommunities(trueLabels, nNodes);
-
     //Create the confusion matrix
     for(int i = 0; i < cA; i++){
     	for(int j = 0; j < cB; j++){

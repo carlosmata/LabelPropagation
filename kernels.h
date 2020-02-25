@@ -91,7 +91,7 @@ void bc_bfs_back_sum_kernel(
 //------------------------Version 1------------------------------------------
 //Kernel 1 Code parallel to get the permutation of the nodes
 __global__
-void lp_permutation_kernel(
+void lp_permutation_kernel_1(
 							int *nodes,			//Array of nodes
 							int n_count,		//Number of nodes
 							unsigned int seed	//Seed to generate random numbers
@@ -296,6 +296,7 @@ int lp_get_maximum_label(
 
 	int *labelsNeighbours = new int[tamLabels];
 	int *countersLabels = new int[tamLabels];
+
 	int posLabelN = -1;
 	int itLabelN = 0;
 
@@ -376,6 +377,32 @@ void lp_copy_array(
 	}
 }
 
+__global__
+void lp_permutation_kernel(
+							int *nodes,			//Array of nodes
+							int n_count,		//Number of nodes
+							unsigned int seed	//Seed to generate random numbers
+						)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	if(idx < n_count){
+		int aux;
+		curandState_t state;
+		curand_init(seed, /* the seed controls the sequence of random values that are produced */
+					0, /* the sequence number is only important with multiple cores */
+					0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+					&state);
+
+		while(idx < n_count){
+			int rand_pos = curand(&state) % n_count; //random( n_count, seed);
+			if(rand_pos < n_count && rand_pos > 0){
+				aux = atomicExch(&nodes[idx], nodes[rand_pos]);
+				atomicExch(&nodes[rand_pos], aux);
+			}
+		}
+	}
+}
 
 __global__
 void lp_compute_maximum_labels_kernel(
@@ -383,11 +410,12 @@ void lp_compute_maximum_labels_kernel(
 						int* tails,					//edges
 						int* indexs,				//edges
 						int* labels,				//Array of label's nodes 
-						int* labels_aux,				//Array of label's nodes 
+						int* labels_aux,			//Array of label's nodes 
 						bool* thereAreChanges,		//flag
 						int seed,					//time(NULL)
 						const int nNodes,			//number of nodes
-						const int nEdges			//number of edges
+						const int nEdges,			//number of edges
+						const int totalNodes		//number of total nodes
 						)
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -397,7 +425,8 @@ void lp_compute_maximum_labels_kernel(
 	//blockIdx.x	-----	id of the block in the grid
 	
 	if(idx < nNodes){
-		int node, maximumLabel;
+		int node;
+		int maximumLabel;
 		curandState_t state;
 		curand_init(seed, /* the seed controls the sequence of random values that are produced */
 					0,    /* the sequence number is only important with multiple cores */
@@ -406,7 +435,7 @@ void lp_compute_maximum_labels_kernel(
 
 		while(idx < nNodes){
 			node = nodes[idx];
-			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, nNodes, nEdges);
+			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
 			if(maximumLabel != labels[node]){
 				atomicExch(&labels[node], maximumLabel);
 				//labels[node] = maximumLabel;

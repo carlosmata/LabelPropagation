@@ -53,15 +53,22 @@ void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
 	cout << "\nModularity: "<< getModularity(g->getTails(), g->getIndexs(), g->getNumberNodes(), g->getNumberEdges(), communities) << endl;
 	if(truedata != ""){
 		int *realCommunities = g->getRealCommunities(truedata);
-
-		/*for(int i = 0; i < nNodes; i++){
+		/*
+		for(int i = 0; i < nNodes; i++){
 			cout << i << "\t" << realCommunities[i] << endl;
+		}
+
+		cout << "communities calculated:"<< endl;
+		for(int i = 0; i < nNodes; i++){
+			cout << i << "\t" << communities[i] << endl;
 		}*/
 
 		if(realCommunities != nullptr){
 			float nmi = getNMI(communities, realCommunities, g->getNumberNodes());
-			cout << "\nNMI: "<< nmi;
+			cout << "NMI: "<< nmi << endl;
 		}
+
+		delete[] realCommunities;
 	}
 	
 	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
@@ -75,7 +82,8 @@ void centrality_parallel_brandes(Graph *g){
 	
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
-	printf("nNodes:%d\n", nNodes);
+
+	cout << "nNodes:" << nNodes << endl;
 	float centralityGraph[nNodes];
 	//memset(centralityGraph, 0,  sizeof(float) * nNodes);
 	
@@ -120,8 +128,8 @@ void centrality_sequential_brandes(Graph *g){
 	
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
-	printf("nNodes:%d\n", nNodes);
-	printf("nEdges:%d\n", nEdges);
+	cout << "nNodes:" << nNodes << endl;
+	cout << "nEdges:" << nEdges << endl;
 	
 	//-----------------------------Begin time------------------------------------------------
 	auto start = chrono::high_resolution_clock::now();
@@ -145,32 +153,30 @@ void centrality_sequential_brandes(Graph *g){
 /**
 	Compute the label propagation in a sequential way
 */
-void label_propagation_sequential(Graph *g, string truedata){
+void label_propagation_sequential(Graph *g, string truedata, bool synchronous){
 	cout << "Label Propagation Secuential" << endl;
 
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
-	printf("nNodes:%d\n", nNodes);
-	printf("nEdges:%d\n", nEdges);
+	cout << "nNodes:" << nNodes << endl;
+	cout << "nEdges:" << nEdges << endl;
 
 	//-----------------------------Begin time to algorithm------------------------------------------------
 	auto start = chrono::high_resolution_clock::now();
 	ios_base::sync_with_stdio(false);
 	
-	int* labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	int* labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, synchronous);
 
 	auto end = chrono::high_resolution_clock::now();
 	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
-	
-	int* labels_renamed = g->renameLabels(labels);
-	printCommunities(g, nNodes, labels_renamed, truedata);
+	printCommunities(g, nNodes, labels, truedata);
+	//g->saveCommunitiesinFile("output.groups", labels);
 	//print in a file
-	g->saveCommunitiesinFile("output.groups", labels_renamed);
 
 	delete[] labels;
-	delete[] labels_renamed;
+	//delete[] labels_renamed;
 
 	cout << "Secuencial Label propagation time taken by program is : " << fixed
 		 << time_taken << setprecision(9);
@@ -185,20 +191,21 @@ void label_propagation_parallel(Graph *g, string truedata){
 
 	int nNodes = g->getNumberNodes();
 	int nEdges = g->getNumberEdges();
-	printf("nNodes:%d\n", nNodes);
-	printf("nEdges:%d\n", nEdges);
+	cout << "nNodes:" << nNodes << endl;
+	cout << "nEdges:" << nEdges << endl;
 
 	//-----------------------------Begin time to algorithm------------------------------------------------
 	auto start = chrono::high_resolution_clock::now();
 	ios_base::sync_with_stdio(false);
 	
-	int* labels = labelPropagationParallel(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
 
+	int* labels = labelPropagationParallel(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	//int* labels = labelPropagationParallel_V2(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	cout << "end calculation parallel" << endl;
 	auto end = chrono::high_resolution_clock::now();
 	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
 	time_taken *= 1e-9;
 	//---------------------------------------------------------------------------------------
-	
 	printCommunities(g, nNodes, labels, truedata);
 
 	delete[] labels;
@@ -246,6 +253,7 @@ int main(int argc, char **argv)
 	int type = 2; //1-directed, 2-undirected, 3-NET extension
 	int sorted = 0;
 	string truedata = "";
+	bool synchronous = false;
 
 	if(argc == 2){//Add the filename of the datasets
 		filename = argv[1];
@@ -265,6 +273,13 @@ int main(int argc, char **argv)
 		sorted = atoi(argv[3]);
 		truedata = argv[4];
 	}
+	if(argc == 6){//Add the type of the filename and a sorted way desc-asc and a file with true data
+		filename = argv[1];
+		type = atoi(argv[2]);
+		sorted = atoi(argv[3]);
+		truedata = argv[4];
+		synchronous = (argv[4] == "async")? false:true;
+	}
 
 	Graph *g = new Graph(filename, type, sorted);
 	if(g->getNumberNodes() > 0)
@@ -276,8 +291,8 @@ int main(int argc, char **argv)
 		//centrality_sequential_brandes(g);
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
-		label_propagation_sequential(g, truedata);
-		label_propagation_parallel(g, truedata);
+		label_propagation_sequential(g, truedata, synchronous);
+		//label_propagation_parallel(g, truedata);
 	}
 	else
 		cout << "Data null in the dataset";
