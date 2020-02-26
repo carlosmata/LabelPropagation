@@ -277,6 +277,48 @@ void lp_max_label_kernel(
 //----------------------------------------------------------------------------
 
 //-------------------------Version 2------------------------------------------
+__global__
+void lp_copy_array(
+				int* array1,
+				int* array2,
+				int tam
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < tam){
+		array1[idx] = array2[idx];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+__global__
+void lp_permutation_kernel(
+							int *nodes,			//Array of nodes
+							int n_count,		//Number of nodes
+							unsigned int seed	//Seed to generate random numbers
+						)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	if(idx < n_count){
+		int aux;
+		curandState_t state;
+		curand_init(seed, /* the seed controls the sequence of random values that are produced */
+					0, /* the sequence number is only important with multiple cores */
+					0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+					&state);
+
+		while(idx < n_count){
+			int rand_pos = curand(&state) % n_count; //random( n_count, seed);
+			if(rand_pos < n_count && rand_pos > 0){
+				aux = atomicExch(&nodes[idx], nodes[rand_pos]);
+				atomicExch(&nodes[rand_pos], aux);
+			}
+		}
+	}
+}
+
 __device__
 int lp_get_maximum_label(
 					int node,
@@ -285,7 +327,8 @@ int lp_get_maximum_label(
 					int* labels,
 					curandState_t state,
 					const int nNodes,
-					const int nEdges
+					const int nEdges,
+					int *numberLabelMax
 					)
 {
 	//Get their neighboors
@@ -349,7 +392,7 @@ int lp_get_maximum_label(
 	}
 
 	
-
+	*numberLabelMax = numberMax;
 	//Select a label at random
 	int posRandom = curand(&state) % indexMaximumLabels;
 	int maximumLabel = maximumLabels[posRandom];
@@ -363,56 +406,16 @@ int lp_get_maximum_label(
 
 
 __global__
-void lp_copy_array(
-				int* array1,
-				int* array2,
-				int tam
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < tam){
-		array1[idx] = array2[idx];
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-__global__
-void lp_permutation_kernel(
-							int *nodes,			//Array of nodes
-							int n_count,		//Number of nodes
-							unsigned int seed	//Seed to generate random numbers
-						)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	if(idx < n_count){
-		int aux;
-		curandState_t state;
-		curand_init(seed, /* the seed controls the sequence of random values that are produced */
-					0, /* the sequence number is only important with multiple cores */
-					0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-					&state);
-
-		while(idx < n_count){
-			int rand_pos = curand(&state) % n_count; //random( n_count, seed);
-			if(rand_pos < n_count && rand_pos > 0){
-				aux = atomicExch(&nodes[idx], nodes[rand_pos]);
-				atomicExch(&nodes[rand_pos], aux);
-			}
-		}
-	}
-}
-
-__global__
 void lp_compute_maximum_labels_kernel(
+						bool synch,
 						int* nodes,					//Array of nodes (permutation)
 						int* tails,					//edges
 						int* indexs,				//edges
 						int* labels,				//Array of label's nodes 
 						int* labels_aux,			//Array of label's nodes 
-						bool* thereAreChanges,		//flag
-						int seed,					//time(NULL)
+						int* countLabels,
+						int* thereAreChanges,		//flag
+						unsigned int seed,					//time(NULL)
 						const int nNodes,			//number of nodes
 						const int nEdges,			//number of edges
 						const int totalNodes		//number of total nodes
@@ -427,6 +430,8 @@ void lp_compute_maximum_labels_kernel(
 	if(idx < nNodes){
 		int node;
 		int maximumLabel;
+		int numberLabelMax;
+
 		curandState_t state;
 		curand_init(seed, /* the seed controls the sequence of random values that are produced */
 					0,    /* the sequence number is only important with multiple cores */
@@ -435,13 +440,25 @@ void lp_compute_maximum_labels_kernel(
 
 		while(idx < nNodes){
 			node = nodes[idx];
-			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
-			if(maximumLabel != labels[node]){
-				atomicExch(&labels[node], maximumLabel);
-				//labels[node] = maximumLabel;
-				*thereAreChanges = true;
+
+			if(synch){//Synchronous
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges, &numberLabelMax);
+			}
+			else{
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges, &numberLabelMax);
+			}
+			
+			if(maximumLabel != labels[node] && countLabels[node] != numberLabelMax){
+				//printf("numbermax: %d, arrayvalue: %d, id: %d\n", numberLabelMax, countLabels[node], idx);
+				//atomicExch(&labels[node], maximumLabel);
+				//atomicExch(&countLabels[node], numberLabelMax);
+				countLabels[node] = numberLabelMax;
+				labels[node] = maximumLabel;
+				*thereAreChanges = *thereAreChanges + 1;
+				//atomicAdd(thereAreChanges, 1);
 			}
 			idx += blockDim.x * gridDim.x;
+			
 		}
 	}
 }

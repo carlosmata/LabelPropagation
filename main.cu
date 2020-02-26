@@ -165,7 +165,8 @@ void label_propagation_sequential(Graph *g, string truedata, bool synchronous){
 	auto start = chrono::high_resolution_clock::now();
 	ios_base::sync_with_stdio(false);
 	
-	int* labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, synchronous);
+	//int* labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, synchronous);
+	int* labels = labelPropagationSemiSynchSeq(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, synchronous);
 
 	auto end = chrono::high_resolution_clock::now();
 	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
@@ -186,7 +187,7 @@ void label_propagation_sequential(Graph *g, string truedata, bool synchronous){
 /**
 	Compute the label propagation in a parallel way
 */
-void label_propagation_parallel(Graph *g, string truedata){
+void label_propagation_parallel(Graph *g, string truedata, bool synchronous){
 	cout << "Label Propagation Parallel" << endl;
 
 	int nNodes = g->getNumberNodes();
@@ -199,8 +200,12 @@ void label_propagation_parallel(Graph *g, string truedata){
 	ios_base::sync_with_stdio(false);
 	
 
-	int* labels = labelPropagationParallel(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	//int* labels = (synchronous)? LPParallelSynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges):
+	//							 LPParallelAsynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	int* labels = LPParallelSemySynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+	//int* labels = LPParallelAsynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
 	//int* labels = labelPropagationParallel_V2(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+
 	cout << "end calculation parallel" << endl;
 	auto end = chrono::high_resolution_clock::now();
 	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
@@ -292,7 +297,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g, truedata, synchronous);
-		//label_propagation_parallel(g, truedata);
+		label_propagation_parallel(g, truedata, synchronous);
 	}
 	else
 		cout << "Data null in the dataset";
