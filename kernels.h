@@ -327,8 +327,7 @@ int lp_get_maximum_label(
 					int* labels,
 					curandState_t state,
 					const int nNodes,
-					const int nEdges,
-					int *numberLabelMax
+					const int nEdges
 					)
 {
 	//Get their neighboors
@@ -391,8 +390,6 @@ int lp_get_maximum_label(
 		}
 	}
 
-	
-	*numberLabelMax = numberMax;
 	//Select a label at random
 	int posRandom = curand(&state) % indexMaximumLabels;
 	int maximumLabel = maximumLabels[posRandom];
@@ -413,7 +410,6 @@ void lp_compute_maximum_labels_kernel(
 						int* indexs,				//edges
 						int* labels,				//Array of label's nodes 
 						int* labels_aux,			//Array of label's nodes 
-						int* countLabels,
 						int* thereAreChanges,		//flag
 						unsigned int seed,					//time(NULL)
 						const int nNodes,			//number of nodes
@@ -430,7 +426,6 @@ void lp_compute_maximum_labels_kernel(
 	if(idx < nNodes){
 		int node;
 		int maximumLabel;
-		int numberLabelMax;
 
 		curandState_t state;
 		curand_init(seed, /* the seed controls the sequence of random values that are produced */
@@ -442,17 +437,15 @@ void lp_compute_maximum_labels_kernel(
 			node = nodes[idx];
 
 			if(synch){//Synchronous
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges, &numberLabelMax);
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges/*, &numberLabelMax*/);
 			}
 			else{
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges, &numberLabelMax);
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges/*, &numberLabelMax*/);
 			}
 			
-			if(maximumLabel != labels[node] && countLabels[node] != numberLabelMax){
+			if(maximumLabel != labels[node]){
 				//printf("numbermax: %d, arrayvalue: %d, id: %d\n", numberLabelMax, countLabels[node], idx);
 				//atomicExch(&labels[node], maximumLabel);
-				//atomicExch(&countLabels[node], numberLabelMax);
-				countLabels[node] = numberLabelMax;
 				labels[node] = maximumLabel;
 				*thereAreChanges = *thereAreChanges + 1;
 				//atomicAdd(thereAreChanges, 1);
