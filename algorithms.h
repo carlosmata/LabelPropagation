@@ -779,7 +779,7 @@ int* LPParallelSynchronous(
 		res = comAnt - com;
 		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
 		
-		if(res == 0 && resAnt ==0){ break; }
+		//if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
 		resAnt = res;
 
