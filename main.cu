@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 		//centrality_parallel_brandes(g);
 		//printGraph(g);
 		label_propagation_sequential(g, truedata, mode);
-		//label_propagation_parallel(g, truedata, mode);
+		label_propagation_parallel(g, truedata, mode);
 	}
 	else
 		cout << "Data null in the dataset";

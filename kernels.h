@@ -331,50 +331,48 @@ int lp_get_maximum_label(
 					)
 {
 	//Get their neighboors
-	int neighbor = -1;
+	int neighbour = -1;
 	int index = indexs[node];
 	int nextIndex = (node + 1 < nNodes)? indexs[node + 1]:nEdges; 
-	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+	int nNeighbors = (nextIndex - index < 0)?1 : nextIndex - index; 
 
-	int *labelsNeighbours = new int[tamLabels];
-	int *countersLabels = new int[tamLabels];
+	int *labelsNeighbours = new int[nNeighbors];
+	int *countersLabels = new int[nNeighbors];
 
 	int posLabelN = -1;
 	int itLabelN = 0;
 
-	for(int i = 0; i < tamLabels; i++){
+	for(int i = 0; i < nNeighbors; i++){
 		labelsNeighbours[i] = -1;
 		countersLabels[i] = 0;
 	}
 
 	//Count the labels
-	for(int tail = index; tail < nextIndex; tail++){
-		neighbor = tails[tail];//get the neighbor
-		if(neighbor < nNodes){ //the neightbor exist
+	for(int tail = index; tail < nextIndex; tail++){ //number of neighbors
+		neighbour = tails[tail];//get the neighbour
+		if(neighbour < nNodes){ //the neightbor exist
 			//find if the label exist en the labelsNeighbor
 			posLabelN = -1;
 
-			for(int n = 0; n < tamLabels; n++){ //find label
-				if(labels[neighbor] == labelsNeighbours[n]){
+			for(int n = 0; n < nNeighbors; n++){ //find label
+				if(labels[neighbour] == labelsNeighbours[n]){
 					posLabelN = n;
+					countersLabels[posLabelN]++;
 					break;
 				}
 			}
 
 			if(posLabelN == -1){//new label
-				labelsNeighbours[itLabelN] = labels[neighbor];
+				labelsNeighbours[itLabelN] = labels[neighbour];
 				countersLabels[itLabelN] = 1;
 				itLabelN++;
-			}
-			else{
-				countersLabels[posLabelN]++;
 			}
 		}
 	}
 
 	//Find the Maximum
 	int numberMax = -1;
-	int *maximumLabels = new int[tamLabels];
+	int *maximumLabels = new int[nNeighbors];
 	int indexMaximumLabels = 0;
 
 	for(int i = 0;i < itLabelN; i++){
@@ -436,12 +434,13 @@ void lp_compute_maximum_labels_kernel(
 		while(idx < nNodes){
 			node = nodes[idx];
 
-			if(synch){//Synchronous
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges/*, &numberLabelMax*/);
+			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
+			/*if(synch){//Synchronous
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
 			}
 			else{
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges/*, &numberLabelMax*/);
-			}
+				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
+			}*/
 			
 			if(maximumLabel != labels[node]){
 				//printf("numbermax: %d, arrayvalue: %d, id: %d\n", numberLabelMax, countLabels[node], idx);
