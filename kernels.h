@@ -354,7 +354,7 @@ int lp_get_maximum_label(
 			//find if the label exist en the labelsNeighbor
 			posLabelN = -1;
 
-			for(int n = 0; n < nNeighbors; n++){ //find label
+			for(int n = 0; n < nNeighbors; n++){ //find label in neighbors
 				if(labels[neighbour] == labelsNeighbours[n]){
 					posLabelN = n;
 					countersLabels[posLabelN]++;
@@ -435,22 +435,14 @@ void lp_compute_maximum_labels_kernel(
 			node = nodes[idx];
 
 			maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
-			/*if(synch){//Synchronous
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
-			}
-			else{
-				maximumLabel = lp_get_maximum_label(node, tails, indexs, labels_aux, state, totalNodes, nEdges);
-			}*/
 			
 			if(maximumLabel != labels[node]){
-				//printf("numbermax: %d, arrayvalue: %d, id: %d\n", numberLabelMax, countLabels[node], idx);
 				//atomicExch(&labels[node], maximumLabel);
 				labels[node] = maximumLabel;
 				*thereAreChanges = *thereAreChanges + 1;
 				//atomicAdd(thereAreChanges, 1);
 			}
 			idx += blockDim.x * gridDim.x;
-			
 		}
 	}
 }

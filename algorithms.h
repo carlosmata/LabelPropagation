@@ -701,10 +701,8 @@ int* LPParallelSynchronous(
 {
 	//int NUMBER_OF_THREADS = 32;
 	//int SHARED_MEMORY_SIZE = (32 + 16) * nNodes * 4;
-	//Number of threads
 	int nTPB = MAX_THREADS_PER_BLOCK;											//Threads in a block  256
-	int MAX_KERNEL_BLOCKS = nNodes / nTPB; //30;													//Max blocks in a Grid
-	//int numberOfThreadsPerBlock = nTPB 
+	int MAX_KERNEL_BLOCKS = nNodes / nTPB; //30;								//Max blocks in a Grid
 	int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, ((nNodes + nTPB - 1)/nTPB));	//Blocks in a Grid
 
 	int *labels = new int[nNodes];
@@ -781,7 +779,7 @@ int* LPParallelSynchronous(
 		res = comAnt - com;
 		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
 		
-		if(res == 0 && resAnt ==0){ break; }
+		//if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
 		resAnt = res;
 
