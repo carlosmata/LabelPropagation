@@ -416,6 +416,7 @@ int* labelPropagationSequential(
 		labels[i] = i;
 		nodes[i] = i;
 	}
+	int maxIteration = 10;
 
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
@@ -456,7 +457,7 @@ int* labelPropagationSequential(
 		comAnt = com;
 		resAnt = res;
 
-		if(t > nNodes){
+		if(t > maxIteration){
 			break;
 		}
 	}
@@ -741,7 +742,8 @@ int* LPParallelSynchronous(
 
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
-
+	int maxIteration = 10;
+	
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
@@ -779,11 +781,11 @@ int* LPParallelSynchronous(
 		res = comAnt - com;
 		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
 		
-		//if(res == 0 && resAnt ==0){ break; }
+		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
 		resAnt = res;
 
-		if(t > nNodes){
+		if(t > maxIteration){
 			break;
 		}
 	}
