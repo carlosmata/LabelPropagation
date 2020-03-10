@@ -743,7 +743,7 @@ int* LPParallelSynchronous(
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
 	int maxIteration = 10;
-	
+
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
@@ -865,6 +865,7 @@ int* LPParallelAsynchronous(
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
 
+	int maxIteration = 10;
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
@@ -902,7 +903,7 @@ int* LPParallelAsynchronous(
 		comAnt = com;
 		resAnt = res;
 
-		if(t > nNodes){
+		if(t > maxIteration){
 			break;
 		}
 	}
@@ -988,6 +989,7 @@ int* LPParallelSemySynchronous(
 
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
+	int maxIteration = 10;
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
@@ -1030,7 +1032,7 @@ int* LPParallelSemySynchronous(
 		comAnt = com;
 		resAnt = res;
 
-		if(t > nNodes){
+		if(t > maxIteration){
 			break;
 		}
 	}
