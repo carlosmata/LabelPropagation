@@ -641,6 +641,7 @@ int* labelPropagationSemiSynchSeq(
 	int *colors = getGraphColors(nodes, tails, indexs, &numberOfColors, nNodes,nEdges);
 	cout << "Number of colors:" << numberOfColors << endl;
 
+	int maxIteration = 10;
 	while(thereAreChanges){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
 		thereAreChanges = 0;
@@ -667,7 +668,7 @@ int* labelPropagationSemiSynchSeq(
 		comAnt = com;
 		resAnt = res;
 
-		if(t > nNodes){
+		if(t > maxIteration){
 			break;
 		}
 	}
