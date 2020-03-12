@@ -292,6 +292,217 @@ void lp_copy_array(
 	}
 }
 
+//Init the labels and nodes
+__global__
+void lp_init_arrays(
+				int* labels,
+				int* nodes,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		labels[idx] = idx;
+		nodes[idx] = idx;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
+//Init the labels
+__global__
+void lp_init_labels(
+				int* labels,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		labels[idx] = idx;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
+//Gather		 //Create the array labels_vertex
+//------------------------------------
+__global__
+void lp_gather(
+			int* labels,
+			int* labels_vertex,
+			int* tails,
+			int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges){
+		labels_vertex[idx] = labels[tails[idx]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
+//------------------------------------
+
+//Segmented sort //Sort the subarrays
+//------------------------------------
+//------------------------------------
+
+//Calculates boundaries F
+__global__
+void lp_init_boundaries_1(
+				int* labels_vertex,
+				int* F,
+				int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges - 1){
+		F[idx] = (labels_vertex[idx] != labels_vertex[idx + 1])? 1 : 0;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Calculates boundaries in indexs
+__global__
+void lp_init_boundaries_2(
+				int* indexs,
+				int* F,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		F[indexs[idx]] = 1;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Scan
+//------------------------------------
+__global__ 
+void lp_scan(
+			int* F_scan, 
+			int* F, 
+			int n) 
+{
+	extern __shared__ float temp[];// allocated on invocation
+	int thid = threadIdx.x;
+	int offset = 1;
+	temp[2 * thid] = F[2 * thid]; // load input into shared memory
+	temp[2 * thid+1] = F[2 * thid + 1];
+
+	for (int d = n>>1; d > 0; d >>= 1) // build sum in place up the tree
+	{
+		__syncthreads();
+		if (thid < d)
+		{
+			int ai = offset * (2 * thid+1)-1;
+			int bi = offset * (2 * thid+2)-1;
+			temp[bi] += temp[ai];
+		}
+		offset *= 2;
+	}
+	if (thid == 0) { 
+		temp[n - 1] = 0; 
+	} // clear the last element
+	for (int d = 1; d < n; d *= 2) // traverse down tree & build scan
+	{
+		offset >>= 1;
+		__syncthreads();
+		if (thid < d)
+		{
+			int ai = offset* (2 * thid + 1)-1;
+			int bi = offset * (2 * thid + 2)-1;
+			float t = temp[ai];
+			temp[ai] = temp[bi];
+			temp[bi] += t;
+		}
+	}
+	__syncthreads();
+	F_scan[2 * thid] = temp[2 * thid]; // write results to device memory
+	F_scan[2 * thid+1] = temp[2 * thid  + 1];
+}
+//------------------------------------
+
+//Compute S
+__global__
+void lp_init_S(
+				int* S,
+				int* F_scan,
+				int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges){
+		if(F_scan[idx] != F_scan[idx + 1]){
+			S[F_scan[idx]] = idx;
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Compute Sptr
+__global__
+void lp_init_Sptr(
+				int* F_scan,
+				int* indexs,
+				int* Sptr,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		Sptr[idx] = F_scan[indexs[idx]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+//Compute W
+__global__
+void lp_init_W(
+				int* S,
+				int* W,
+				int tam
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < tam){
+		if(idx != 0){
+			W[idx] = S[idx] - S[idx - 1];
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+//Segmented reduce
+//---------------------
+//---------------------
+
+//Computes Labels
+__global__
+void lp_compute_labels(
+				int* labels,
+				int* labels_vertex,
+				int* S,
+				int* I,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		labels[idx] = labels_vertex[S[I[idx]]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
 __global__
 void lp_permutation_kernel(
 							int *nodes,			//Array of nodes
