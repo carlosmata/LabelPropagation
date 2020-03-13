@@ -278,6 +278,33 @@ void lp_max_label_kernel(
 
 //-------------------------Version 2------------------------------------------
 __global__
+void lp_permutation_kernel(
+							int *nodes,			//Array of nodes
+							int n_count,		//Number of nodes
+							unsigned int seed	//Seed to generate random numbers
+						)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	if(idx < n_count){
+		int aux;
+		curandState_t state;
+		curand_init(seed, /* the seed controls the sequence of random values that are produced */
+					0, /* the sequence number is only important with multiple cores */
+					0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+					&state);
+
+		while(idx < n_count){
+			int rand_pos = curand(&state) % n_count; //random( n_count, seed);
+			if(rand_pos < n_count && rand_pos > 0){
+				aux = atomicExch(&nodes[idx], nodes[rand_pos]);
+				atomicExch(&nodes[rand_pos], aux);
+			}
+		}
+	}
+}
+
+__global__
 void lp_copy_array(
 				int* array1,
 				int* array2,
@@ -306,227 +333,6 @@ void lp_init_arrays(
 		labels[idx] = idx;
 		nodes[idx] = idx;
 		idx += blockDim.x * gridDim.x;
-	}
-}
-
-
-//Init the labels
-__global__
-void lp_init_labels(
-				int* labels,
-				int nNodes
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nNodes){
-		labels[idx] = idx;
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-
-//Gather		 //Create the array labels_vertex
-//------------------------------------
-__global__
-void lp_gather(
-			int* labels,
-			int* labels_vertex,
-			int* tails,
-			int nEdges
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nEdges){
-		labels_vertex[idx] = labels[tails[idx]];
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-
-//------------------------------------
-
-//Segmented sort //Sort the subarrays
-//------------------------------------
-//------------------------------------
-
-//Calculates boundaries F
-__global__
-void lp_init_boundaries_1(
-				int* labels_vertex,
-				int* F,
-				int nEdges
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nEdges - 1){
-		F[idx] = (labels_vertex[idx] != labels_vertex[idx + 1])? 1 : 0;
-		idx += blockDim.x * gridDim.x;
-	}
-}
-//Calculates boundaries in indexs
-__global__
-void lp_init_boundaries_2(
-				int* indexs,
-				int* F,
-				int nNodes
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nNodes){
-		F[indexs[idx]] = 1;
-		idx += blockDim.x * gridDim.x;
-	}
-}
-//Scan
-//------------------------------------
-__global__ 
-void lp_scan(
-			int* F_scan, 
-			int* F, 
-			int n) 
-{
-	extern __shared__ float temp[];// allocated on invocation
-	int thid = threadIdx.x;
-	int offset = 1;
-	temp[2 * thid] = F[2 * thid]; // load input into shared memory
-	temp[2 * thid+1] = F[2 * thid + 1];
-
-	for (int d = n>>1; d > 0; d >>= 1) // build sum in place up the tree
-	{
-		__syncthreads();
-		if (thid < d)
-		{
-			int ai = offset * (2 * thid+1)-1;
-			int bi = offset * (2 * thid+2)-1;
-			temp[bi] += temp[ai];
-		}
-		offset *= 2;
-	}
-	if (thid == 0) { 
-		temp[n - 1] = 0; 
-	} // clear the last element
-	for (int d = 1; d < n; d *= 2) // traverse down tree & build scan
-	{
-		offset >>= 1;
-		__syncthreads();
-		if (thid < d)
-		{
-			int ai = offset* (2 * thid + 1)-1;
-			int bi = offset * (2 * thid + 2)-1;
-			float t = temp[ai];
-			temp[ai] = temp[bi];
-			temp[bi] += t;
-		}
-	}
-	__syncthreads();
-	F_scan[2 * thid] = temp[2 * thid]; // write results to device memory
-	F_scan[2 * thid+1] = temp[2 * thid  + 1];
-}
-//------------------------------------
-
-//Compute S
-__global__
-void lp_init_S(
-				int* S,
-				int* F_scan,
-				int nEdges
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nEdges){
-		if(F_scan[idx] != F_scan[idx + 1]){
-			S[F_scan[idx]] = idx;
-		}
-		idx += blockDim.x * gridDim.x;
-	}
-}
-//Compute Sptr
-__global__
-void lp_init_Sptr(
-				int* F_scan,
-				int* indexs,
-				int* Sptr,
-				int nNodes
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nNodes){
-		Sptr[idx] = F_scan[indexs[idx]];
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-//Compute W
-__global__
-void lp_init_W(
-				int* S,
-				int* W,
-				int tam
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < tam){
-		if(idx != 0){
-			W[idx] = S[idx] - S[idx - 1];
-		}
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-//Segmented reduce
-//---------------------
-//---------------------
-
-//Computes Labels
-__global__
-void lp_compute_labels(
-				int* labels,
-				int* labels_vertex,
-				int* S,
-				int* I,
-				int nNodes
-	)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	while(idx < nNodes){
-		labels[idx] = labels_vertex[S[I[idx]]];
-		idx += blockDim.x * gridDim.x;
-	}
-}
-
-
-__global__
-void lp_permutation_kernel(
-							int *nodes,			//Array of nodes
-							int n_count,		//Number of nodes
-							unsigned int seed	//Seed to generate random numbers
-						)
-{
-	int idx = threadIdx.x + blockDim.x * blockIdx.x;
-	
-	if(idx < n_count){
-		int aux;
-		curandState_t state;
-		curand_init(seed, /* the seed controls the sequence of random values that are produced */
-					0, /* the sequence number is only important with multiple cores */
-					0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-					&state);
-
-		while(idx < n_count){
-			int rand_pos = curand(&state) % n_count; //random( n_count, seed);
-			if(rand_pos < n_count && rand_pos > 0){
-				aux = atomicExch(&nodes[idx], nodes[rand_pos]);
-				atomicExch(&nodes[rand_pos], aux);
-			}
-		}
 	}
 }
 
@@ -659,6 +465,309 @@ void lp_compute_maximum_labels_kernel(
 	}
 }
 
+
+//-------------------------Version 3----------------------------------
+//Init the labels
+__global__
+void lp_init_labels(
+				int* labels,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		labels[idx] = idx;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+
+//Gather		 //Create the array labels_vertex
+//------------------------------------
+__global__
+void lp_gather(
+			int* labels,
+			int* labels_vertex,
+			int* tails,
+			int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges){
+		labels_vertex[idx] = labels[tails[idx]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//------------------------------------
+
+//Segmented sort //Sort the subarrays
+//------------------------------------
+__global__
+void lp_sort(
+			int* indexs,
+			int* labels_vertex,
+			int nNodes,
+			int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	int index, nextIndex, temp;
+
+	while(idx < nNodes){
+		index = indexs[idx];
+		nextIndex = (idx + 1 < nNodes)? indexs[idx + 1]:nEdges; 
+
+		for(int edgei = index; edgei < nextIndex - 1; edgei++){
+			for(int edgej = index; edgej < nextIndex - 1 - (edgei - index); edgej++){
+				if(labels_vertex[edgej] > labels_vertex[edgej + 1]){
+					temp = labels_vertex[edgej];
+					labels_vertex[edgej] = labels_vertex[edgej + 1];
+					labels_vertex[edgej + 1] = temp;
+				}
+			}
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+//------------------------------------
+
+//Calculates boundaries F
+__global__
+void lp_init_boundaries_1(
+				int* labels_vertex,
+				int* F,
+				int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges - 1){
+		F[idx] = (labels_vertex[idx] != labels_vertex[idx + 1])? 1 : 0;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Calculates boundaries in indexs
+__global__
+void lp_init_boundaries_2(
+				int* indexs,
+				int* F,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		F[indexs[idx]] = 1;
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Scan
+//------------------------------------
+__global__ 
+void lp_scan(
+			int *d_array, 
+			int *d_result, 
+			int N, int *d_aux) 
+{
+
+	extern __shared__ int temp[]; 
+
+	int realIndex = 2 * threadIdx.x + blockDim.x * 2 * blockIdx.x;
+
+  int threadIndex = threadIdx.x;  
+  int index = 2 * threadIndex;   
+
+  int offset = 1;
+
+	// Copy from the array to shared memory.
+	temp[index] = d_array[realIndex];
+	temp[index+1] = d_array[realIndex+1];  
+
+	// Reduce by storing the intermediate values. The last element will be 
+	// the sum of n-1 elements.
+	for (int d = blockDim.x; d > 0; d = d/2) {   
+		__syncthreads();  
+
+		// Regulates the amount of threads operating.
+		if (threadIndex < d)  
+		{  
+			// Swap the numbers
+			int current = offset*(index+1)-1;
+			int next = offset*(index+2)-1;
+			temp[next] += temp[current];  
+		} 
+
+		// Increase the offset by multiple of 2.
+		offset *= 2; 
+	}
+
+	// Only one thread performs this.
+	if (threadIndex == 0) { 
+		// Store the sum to the auxiliary array.
+		if(d_aux) {
+			d_aux[blockIdx.x] = temp[N-1];
+		}
+		// Reset the last element with identity. Only the first thread will do
+		// the job.
+		temp[N - 1] = 0; 
+	} 
+
+	// Down sweep to build scan.
+	for (int d = 1; d < blockDim.x*2; d *= 2) {  
+
+		// Reduce the offset by division of 2.
+		offset = offset / 2;
+
+		__syncthreads();  
+
+		if (threadIndex < d)                       
+		{  
+			int current = offset*(index+1)-1;  
+			int next = offset*(index+2)-1;
+
+			// Swap
+			int tempCurrent = temp[current];  
+			temp[current] = temp[next]; 
+			temp[next] += tempCurrent;   
+		}  
+	}  
+	
+	__syncthreads(); 
+
+	d_result[realIndex] = temp[index]; // write results to device memory  
+	d_result[realIndex+1] = temp[index+1];  	
+}
+// Summing the increment to the result.
+__global__ 
+void sum(
+		int *d_incr, 
+		int *d_result, 
+		int N) 
+{
+	int addThis = d_incr[blockIdx.x];
+	int tid = threadIdx.x + blockDim.x * blockIdx.x;
+
+	d_result[tid] += addThis;
+}
+//------------------------------------
+
+//Compute S
+__global__
+void lp_init_S(
+				int* S,
+				int* F_scan,
+				int nEdges
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nEdges){
+		if(F_scan[idx] != F_scan[idx + 1]){
+			S[F_scan[idx]] = idx;
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+//Compute Sptr
+__global__
+void lp_init_Sptr(
+				int* F_scan,
+				int* indexs,
+				int* Sptr,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		Sptr[idx] = F_scan[indexs[idx]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+//Compute W
+__global__
+void lp_init_W(
+				int* S,
+				int* W,
+				int tam
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < tam){
+		if(idx != 0){
+			W[idx] = S[idx] - S[idx - 1];
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
+//Segmented reduce
+//---------------------
+__global__
+void lp_reduce(
+			int* sptr,
+			int* W,
+			int* I,
+			int nNodes,
+			curandState_t state,
+			int Wsize
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	int index, nextIndex, numberMax, countMax, tam;
+	int *maxIndexs = nullptr;
+
+	while(idx < nNodes){
+		numberMax = -1;
+		countMax = 0;
+
+		index = sptr[idx];
+		nextIndex = (idx + 1 < nNodes)? sptr[idx + 1]:Wsize; 
+		tam = (nextIndex - index < 0)? 1 : nextIndex - index;;
+		maxIndexs = new int[tam];
+
+		for(int edgei = index; edgei < nextIndex; edgei++){
+			if(numberMax < W[edgei]){
+				countMax = 0;
+				numberMax = W[edgei];
+				maxIndexs[countMax] = edgei;
+				countMax++;
+			}
+			else if(numberMax == W[edgei]){
+				maxIndexs[countMax] = edgei;
+				countMax++;
+			}
+		}
+		I[idx] = maxIndexs[curand(&state) % countMax];
+
+		idx += blockDim.x * gridDim.x;
+		delete[] maxIndexs;
+	}
+}
+//---------------------
+
+//Computes Labels
+__global__
+void lp_compute_labels(
+				int* labels,
+				int* labels_vertex,
+				int* S,
+				int* I,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		labels[idx] = labels_vertex[S[I[idx]]];
+		idx += blockDim.x * gridDim.x;
+	}
+}
 
 //----------------------------------------------------------------------------
 
