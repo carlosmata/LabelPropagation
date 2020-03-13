@@ -769,6 +769,25 @@ void lp_compute_labels(
 	}
 }
 
+//Count changes
+__global__
+void lp_compare_labels(
+				int* labels,
+				int* labels_ant,
+				int* numberChanges,
+				int nNodes
+	)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	
+	while(idx < nNodes){
+		if(labels[idx] != labels_ant[idx]){
+			atomicAdd(numberChanges, 1);
+		}
+		idx += blockDim.x * gridDim.x;
+	}
+}
+
 //----------------------------------------------------------------------------
 
 
