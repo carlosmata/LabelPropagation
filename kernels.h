@@ -687,7 +687,6 @@ void lp_init_Sptr(
 		idx += blockDim.x * gridDim.x;
 	}
 }
-
 //Compute W
 __global__
 void lp_init_W(
@@ -705,7 +704,6 @@ void lp_init_W(
 		idx += blockDim.x * gridDim.x;
 	}
 }
-
 //Segmented reduce
 //---------------------
 __global__
@@ -714,7 +712,7 @@ void lp_reduce(
 			int* W,
 			int* I,
 			int nNodes,
-			curandState_t state,
+			unsigned int seed,
 			int Wsize
 	)
 {
@@ -722,6 +720,12 @@ void lp_reduce(
 	int index, nextIndex, numberMax, countMax, tam;
 	int *maxIndexs = nullptr;
 
+	curandState_t state;
+	curand_init(seed, /* the seed controls the sequence of random values that are produced */
+				0,    /* the sequence number is only important with multiple cores */
+				0,    /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+				&state);
+		
 	while(idx < nNodes){
 		numberMax = -1;
 		countMax = 0;
