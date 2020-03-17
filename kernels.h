@@ -544,8 +544,13 @@ void lp_init_boundaries_1(
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	
-	while(idx < nEdges - 1){
-		F[idx] = (labels_vertex[idx] != labels_vertex[idx + 1])? 1 : 0;
+	while(idx < nEdges){
+		if(idx == nEdges - 1){
+			F[idx] = 1;
+		}
+		else{
+			F[idx] = (labels_vertex[idx] != labels_vertex[idx + 1])? 1 : 0;
+		}
 		idx += blockDim.x * gridDim.x;
 	}
 }
@@ -570,17 +575,18 @@ __global__
 void lp_scan(
 			int *d_array, 
 			int *d_result, 
-			int N, int *d_aux) 
+			int N, 
+			int *d_aux) 
 {
 
 	extern __shared__ int temp[]; 
 
 	int realIndex = 2 * threadIdx.x + blockDim.x * 2 * blockIdx.x;
 
-  int threadIndex = threadIdx.x;  
-  int index = 2 * threadIndex;   
+	int threadIndex = threadIdx.x;  
+	int index = 2 * threadIndex;   
 
-  int offset = 1;
+	int offset = 1;
 
 	// Copy from the array to shared memory.
 	temp[index] = d_array[realIndex];
@@ -642,7 +648,7 @@ void lp_scan(
 }
 // Summing the increment to the result.
 __global__ 
-void sum(
+void lp_sum(
 		int *d_incr, 
 		int *d_result, 
 		int N) 
@@ -692,14 +698,18 @@ __global__
 void lp_init_W(
 				int* S,
 				int* W,
-				int tam
+				int* F_s,
+				int nEdges
 	)
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	
-	while(idx < tam){
+	while(idx < F_s[nEdges - 1] + 1){
 		if(idx != 0){
 			W[idx] = S[idx] - S[idx - 1];
+		}
+		else{
+			W[idx] = S[idx] + 1;
 		}
 		idx += blockDim.x * gridDim.x;
 	}
@@ -713,7 +723,8 @@ void lp_reduce(
 			int* I,
 			int nNodes,
 			unsigned int seed,
-			int Wsize
+			int* F_s,
+			int nEdges
 	)
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -731,7 +742,7 @@ void lp_reduce(
 		countMax = 0;
 
 		index = sptr[idx];
-		nextIndex = (idx + 1 < nNodes)? sptr[idx + 1]:Wsize; 
+		nextIndex = (idx + 1 < nNodes)? sptr[idx + 1]:F_s[nEdges - 1] + 1; 
 		tam = (nextIndex - index < 0)? 1 : nextIndex - index;;
 		maxIndexs = new int[tam];
 

@@ -168,13 +168,16 @@ void label_propagation_sequential(Graph *g, string truedata, int mode){
 	int* labels = nullptr;
 	switch(mode){
 		case 0://synchronous
-			labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, true);
+			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, true);
 		break;
 		case 1://asynchronous
-			labels = labelPropagationSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges, false);
+			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, false);
 		break;
 		case 2://semi-synchronous
-			labels = labelPropagationSemiSynchSeq(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+			labels = labelPropagationSemiSynchSeq(g->getTails(), g->getIndexs(), nNodes, nEdges);
+		break;
+		case 3://semi-synchronous
+			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, false);
 		break;
 	}
 
@@ -209,14 +212,17 @@ void label_propagation_parallel(Graph *g, string truedata, int mode){
 	
 	int* labels = nullptr;
 	switch(mode){
-		case 0:
-			labels = LPParallelSynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+		case 0: //Synchronous mode
+			labels = LPParallelSynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
 		break;
-		case 1:
-			labels = LPParallelAsynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+		case 1: //Asynchronous mode
+			labels = LPParallelAsynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
 		break;
-		case 2:
-			labels = LPParallelSemySynchronous(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
+		case 2: //SemySynchronous mode
+			labels = LPParallelSemySynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
+		break;
+		case 3: //Asynchronous 2 mode
+			labels = LPParallel_V2(g->getTails(), g->getIndexs(), nNodes, nEdges);
 		break;
 	}
 
