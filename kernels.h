@@ -339,8 +339,8 @@ void lp_init_arrays(
 __device__
 int lp_get_maximum_label(
 					int node,
-					int* tails, 
-					int* indexs,
+					const int* tails, 
+					const int* indexs,
 					int* labels,
 					curandState_t state,
 					const int nNodes,
@@ -348,69 +348,65 @@ int lp_get_maximum_label(
 					)
 {
 	//Get their neighboors
-	int neighbour = -1;
 	int index = indexs[node];
-	int nextIndex = (node + 1 < nNodes)? indexs[node + 1]:nEdges; 
-	int nNeighbors = (nextIndex - index < 0)?1 : nextIndex - index; 
+	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
+	int nEdgesNode = (nextIndex - index < 0)?1 : nextIndex - index; 
 
-	int *labelsNeighbours = new int[nNeighbors];
-	int *countersLabels = new int[nNeighbors];
-
-	int posLabelN = -1;
-	int itLabelN = 0;
-
-	for(int i = 0; i < nNeighbors; i++){
-		labelsNeighbours[i] = -1;
-		countersLabels[i] = 0;
+	int *labelsEdges = new int[nEdgesNode];
+	int *sumsLabels = new int[nEdgesNode];
+	
+	for(int i = 0; i < nEdgesNode; i++){
+		labelsEdges[i] = -1;
+		sumsLabels[i] = 0;
 	}
 
 	//Count the labels
-	for(int tail = index; tail < nextIndex; tail++){ //number of neighbors
-		neighbour = tails[tail];//get the neighbour
-		if(neighbour < nNodes){ //the neightbor exist
+	int posLabel = -1;
+	int nLabelsNode = 0;
+	int edge = -1;
+	for(int tail = index; tail < nextIndex; tail++){
+		edge = tails[tail];//get the neighbor
+		if(edge < nNodes){ //the neightbor exist
 			//find if the label exist en the labelsNeighbor
-			posLabelN = -1;
-
-			for(int n = 0; n < nNeighbors; n++){ //find label in neighbors
-				if(labels[neighbour] == labelsNeighbours[n]){
-					posLabelN = n;
-					countersLabels[posLabelN]++;
+			posLabel = -1;
+			for(int edgei = 0; edgei < nEdgesNode; edgei++){
+				if(labels[edge] == labelsEdges[edgei]){
+					posLabel = edgei;
+					sumsLabels[edgei]++;
 					break;
 				}
 			}
 
-			if(posLabelN == -1){//new label
-				labelsNeighbours[itLabelN] = labels[neighbour];
-				countersLabels[itLabelN] = 1;
-				itLabelN++;
+			if(posLabel == -1){//new label, the label never find it
+				labelsEdges[nLabelsNode] = labels[edge];
+				sumsLabels[nLabelsNode] = 1;
+				nLabelsNode++;
 			}
 		}
 	}
-
 	//Find the Maximum
 	int numberMax = -1;
-	int *maximumLabels = new int[nNeighbors];
-	int indexMaximumLabels = 0;
+	int *maximumLabels = new int[nLabelsNode];
+	int nMaxLabels = 0;
 
-	for(int i = 0;i < itLabelN; i++){
-		if(numberMax < countersLabels[i]){
-			indexMaximumLabels = 0;
-			numberMax = countersLabels[i];
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
+	for(int i = 0;i < nLabelsNode; i++){
+		if(numberMax < sumsLabels[i]){
+			nMaxLabels = 0;
+			numberMax = sumsLabels[i];
+			maximumLabels[nMaxLabels] = labelsEdges[i];
+			nMaxLabels++;
 		}
-		else if(numberMax == countersLabels[i]){
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
+		else if(numberMax == sumsLabels[i]){
+			maximumLabels[nMaxLabels] = labelsEdges[i];
+			nMaxLabels++;
 		}
 	}
 
 	//Select a label at random
-	int posRandom = curand(&state) % indexMaximumLabels;
-	int maximumLabel = maximumLabels[posRandom];
+	int maximumLabel = maximumLabels[curand(&state) % nMaxLabels];
 
-	delete[] labelsNeighbours;
-	delete[] countersLabels;
+	delete[] labelsEdges;
+	delete[] sumsLabels;
 	delete[] maximumLabels;
 
 	return maximumLabel;
@@ -465,6 +461,49 @@ void lp_compute_maximum_labels_kernel(
 	}
 }
 
+__global__
+void lp_compute_maximum_labels_semi(
+						const int* nodes,			//Array of nodes (permutation)
+						const int* tails,			//edges
+						const int* indexs,			//edges
+						int* labels,				//Array of label's nodes 
+						int* changes,				//flag
+						const unsigned int seed,	//time(NULL)
+						const int nNodes,			//number of nodes
+						const int nEdges,			//number of edges
+						const int beginData,		//number of data to compute
+						const int endData
+						)
+{
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	//gridDim.x		-----	Number of blocks
+	//threadIdx.x	-----	id of thread in the block
+	//blockDim.x	-----	Number of threads per block
+	//blockIdx.x	-----	id of the block in the grid
+	idx = beginData + idx;
+	if(idx < endData){
+		int node, maxLabel;
+
+		curandState_t state;
+		curand_init(seed, /* the seed controls the sequence of random values that are produced */
+					0,    /* the sequence number is only important with multiple cores */
+					0,    /* the offset is how much extra we advance in the sequence for each call, can be 0 */
+					&state);
+
+		while(idx < endData){
+			node = nodes[idx];
+			//printf("%d ", node);
+
+			maxLabel = lp_get_maximum_label(node, tails, indexs, labels, state, nNodes, nEdges);
+			
+			if(maxLabel != labels[node]){
+				labels[node] = maxLabel;
+				atomicAdd(changes, 1);
+			}
+			idx += blockDim.x * gridDim.x;
+		}
+	}
+}
 
 //-------------------------Version 3----------------------------------
 //Init the labels
@@ -484,13 +523,12 @@ void lp_init_labels(
 
 
 //Gather		 //Create the array labels_vertex
-//------------------------------------
 __global__
 void lp_gather(
-			int* labels,
+			const int* labels,
 			int* labels_vertex,
-			int* tails,
-			int nEdges
+			const int* tails,
+			const int nEdges
 	)
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -500,7 +538,6 @@ void lp_gather(
 		idx += blockDim.x * gridDim.x;
 	}
 }
-//------------------------------------
 
 //Segmented sort //Sort the subarrays
 //------------------------------------
@@ -537,9 +574,9 @@ void lp_sort(
 //Calculates boundaries F
 __global__
 void lp_init_boundaries_1(
-				int* labels_vertex,
+				const int* labels_vertex,
 				int* F,
-				int nEdges
+				const int nEdges
 	)
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -565,100 +602,12 @@ void lp_init_boundaries_2(
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	
 	while(idx < nNodes){
-		F[indexs[idx]] = 1;
+		if(idx > 0){
+			F[indexs[idx] - 1] = 1;
+		}
 		idx += blockDim.x * gridDim.x;
 	}
 }
-//Scan
-//------------------------------------
-__global__ 
-void lp_scan(
-			int *d_array, 
-			int *d_result, 
-			int N, 
-			int *d_aux) 
-{
-
-	extern __shared__ int temp[]; 
-
-	int realIndex = 2 * threadIdx.x + blockDim.x * 2 * blockIdx.x;
-
-	int threadIndex = threadIdx.x;  
-	int index = 2 * threadIndex;   
-
-	int offset = 1;
-
-	// Copy from the array to shared memory.
-	temp[index] = d_array[realIndex];
-	temp[index+1] = d_array[realIndex+1];  
-
-	// Reduce by storing the intermediate values. The last element will be 
-	// the sum of n-1 elements.
-	for (int d = blockDim.x; d > 0; d = d/2) {   
-		__syncthreads();  
-
-		// Regulates the amount of threads operating.
-		if (threadIndex < d)  
-		{  
-			// Swap the numbers
-			int current = offset*(index+1)-1;
-			int next = offset*(index+2)-1;
-			temp[next] += temp[current];  
-		} 
-
-		// Increase the offset by multiple of 2.
-		offset *= 2; 
-	}
-
-	// Only one thread performs this.
-	if (threadIndex == 0) { 
-		// Store the sum to the auxiliary array.
-		if(d_aux) {
-			d_aux[blockIdx.x] = temp[N-1];
-		}
-		// Reset the last element with identity. Only the first thread will do
-		// the job.
-		temp[N - 1] = 0; 
-	} 
-
-	// Down sweep to build scan.
-	for (int d = 1; d < blockDim.x*2; d *= 2) {  
-
-		// Reduce the offset by division of 2.
-		offset = offset / 2;
-
-		__syncthreads();  
-
-		if (threadIndex < d)                       
-		{  
-			int current = offset*(index+1)-1;  
-			int next = offset*(index+2)-1;
-
-			// Swap
-			int tempCurrent = temp[current];  
-			temp[current] = temp[next]; 
-			temp[next] += tempCurrent;   
-		}  
-	}  
-	
-	__syncthreads(); 
-
-	d_result[realIndex] = temp[index]; // write results to device memory  
-	d_result[realIndex+1] = temp[index+1];  	
-}
-// Summing the increment to the result.
-__global__ 
-void lp_sum(
-		int *d_incr, 
-		int *d_result, 
-		int N) 
-{
-	int addThis = d_incr[blockIdx.x];
-	int tid = threadIdx.x + blockDim.x * blockIdx.x;
-
-	d_result[tid] += addThis;
-}
-//------------------------------------
 
 //Compute S
 __global__
@@ -670,7 +619,7 @@ void lp_init_S(
 {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	
-	while(idx < nEdges){
+	while(idx < nEdges - 1){
 		if(F_scan[idx] != F_scan[idx + 1]){
 			S[F_scan[idx]] = idx;
 		}

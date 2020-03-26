@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <bits/stdc++.h>
 #include "community_measures.cu"
+#include "scan.h"
 
 using namespace std;
 #define MIN(a,b) ((a > b)? b:a)		//Function to return the minium
@@ -247,28 +248,6 @@ void brandesParallel(
 //---------------------------------------------------------------------------------------
 //_----------------------------Communities Sequential------------------------------------
 /**
-	Compute the community detection running the label propagation algorithm
-
-	Parameters:
-		labelsNeigbours:
-		label:
-		totalNeighbours: Size of the array neigh
-*/
-int findLabel(
-			int* labelsNeighbours,
-			int label,
-			int totalNeighbours)
-{
-	for(int n = 0; n < totalNeighbours; n++){
-		if(label == labelsNeighbours[n]){
-			return n;
-		}
-	}
-
-	return -1;
-}
-
-/**
 	Returns the label occurring with the highest frequency among neighbours.
 	
 	Parameters.
@@ -287,60 +266,65 @@ int getMaximumLabel(int node,
 					)
 {
 	//Get their neighboors
-	int neighbor = -1;
 	int index = indexs[node];
 	int nextIndex = (node + 1 < nNodes)?indexs[node + 1]:nEdges; 
-	int tamLabels = (nextIndex - index < 0)?1 : nextIndex - index; 
+	int nEdgesNode = (nextIndex - index < 0)?1 : nextIndex - index; 
 
-	int *labelsNeighbours = new int[tamLabels];
-	int *countersLabels = new int[tamLabels];
-	int posLabelN = -1;
-	int itLabelN = 0;
-	for(int i = 0; i < tamLabels; i++){
-		labelsNeighbours[i] = -1;
-		countersLabels[i] = 0;
+	int *labelsEdges = new int[nEdgesNode];
+	int *sumsLabels = new int[nEdgesNode];
+	
+	for(int i = 0; i < nEdgesNode; i++){
+		labelsEdges[i] = -1;
+		sumsLabels[i] = 0;
 	}
 
 	//Count the labels
+	int posLabel = -1;
+	int nLabelsNode = 0;
+	int edge = -1;
 	for(int tail = index; tail < nextIndex; tail++){
-		neighbor = tails[tail];//get the neighbor
-		if(neighbor < nNodes){ //the neightbor exist
+		edge = tails[tail];//get the neighbor
+		if(edge < nNodes){ //the neightbor exist
 			//find if the label exist en the labelsNeighbor
-			posLabelN = findLabel(labelsNeighbours, labels[neighbor], tamLabels);
-			if(posLabelN == -1){//new label
-				labelsNeighbours[itLabelN] = labels[neighbor];
-				countersLabels[itLabelN] = 1;
-				itLabelN++;
+			posLabel = -1;
+			for(int edgei = 0; edgei < nEdgesNode; edgei++){
+				if(labels[edge] == labelsEdges[edgei]){
+					posLabel = edgei;
+					sumsLabels[edgei]++;
+					break;
+				}
 			}
-			else{
-				countersLabels[posLabelN]++;
+
+			if(posLabel == -1){//new label, the label never find it
+				labelsEdges[nLabelsNode] = labels[edge];
+				sumsLabels[nLabelsNode] = 1;
+				nLabelsNode++;
 			}
 		}
 	}
 	//Find the Maximum
 	int numberMax = -1;
-	int *maximumLabels = new int[tamLabels];
-	int indexMaximumLabels = 0;
+	int *maximumLabels = new int[nLabelsNode];
+	int nMaxLabels = 0;
 
-	for(int i = 0;i < itLabelN; i++){
-		if(numberMax < countersLabels[i]){
-			indexMaximumLabels = 0;
-			numberMax = countersLabels[i];
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
+	for(int i = 0;i < nLabelsNode; i++){
+		if(numberMax < sumsLabels[i]){
+			nMaxLabels = 0;
+			numberMax = sumsLabels[i];
+			maximumLabels[nMaxLabels] = labelsEdges[i];
+			nMaxLabels++;
 		}
-		else if(numberMax == countersLabels[i]){
-			maximumLabels[indexMaximumLabels] = labelsNeighbours[i];
-			indexMaximumLabels++;
+		else if(numberMax == sumsLabels[i]){
+			maximumLabels[nMaxLabels] = labelsEdges[i];
+			nMaxLabels++;
 		}
 	}
 
 	//Select a label at random
-	int posRandom = rand() % indexMaximumLabels;
-	int maximumLabel = maximumLabels[posRandom];
+	int maximumLabel = maximumLabels[rand() % nMaxLabels];
 
-	delete[] labelsNeighbours;
-	delete[] countersLabels;
+	delete[] labelsEdges;
+	delete[] sumsLabels;
 	delete[] maximumLabels;
 
 	return maximumLabel;
@@ -390,18 +374,18 @@ int* labelPropagationSequential(
 				const int nEdges,
 				bool synchronous)
 {
-	cout<< "Begin Label propagation sequential ";
+	cout<< "seq ";
 	if(synchronous){
-		cout<< "synchronous:" << endl; 
+		cout<< "sync "; 
 	}
 	else{
-		cout<< "asynchronous:" << endl; 
+		cout<< "async "; 
 	}
 
 	int *labels = new int[nNodes];
 	int *labelsAux = new int[nNodes];
 	int *nodes = new int[nNodes];
-	int thereAreChanges = 1;
+	int changes = 1;
 	int maximumLabel = -1;
 	int node;
 	int t = 0;
@@ -416,11 +400,11 @@ int* labelPropagationSequential(
 		labels[i] = i;
 		nodes[i] = i;
 	}
-	int maxIteration = 10;
+	int maxIteration = nNodes;
 
-	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+	while(changes){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
-		thereAreChanges = 0;
+		changes = 0;
 
 		if(!synchronous){ //asynchronous
 			getPermutation(nodes, nNodes); //Optionally: delete nodes with 1 edge and 0 edges
@@ -445,13 +429,13 @@ int* labelPropagationSequential(
 
 			if(maximumLabel != labels[node]){
 				labels[node] = maximumLabel;
-				thereAreChanges++;
+				changes++;
 			}
 		}
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
 			
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -473,6 +457,7 @@ int* getGraphColors(
 					int* tails, 
 					int* indexs, 
 					int* numberOfColors,
+					int* colors,
 					const int nNodes,
 					const int nEdges
 					)
@@ -481,10 +466,11 @@ int* getGraphColors(
 	int nextIndex; 
 	int neighbor;
 	int minimumcolor;
-	int *colors = new int[nNodes];
+	int *colorsAux = new int[nNodes];
 
 	for(int i = 0; i < nNodes; i++){
 		colors[i] = -1;
+		colorsAux[i] = -1;
 	}
 
 	for(int nodei = 0; nodei < nNodes; nodei++){
@@ -494,15 +480,30 @@ int* getGraphColors(
 		nextIndex = (nodei + 1 < nNodes)?indexs[nodei + 1]:nEdges; 
 		for(int tail = index; tail < nextIndex; tail++){
 			neighbor = tails[tail];//get the neighbor
-			if(colors[neighbor] == minimumcolor){
+			if(colorsAux[neighbor] == minimumcolor){
 				minimumcolor++;
 			}
 		}
 		//Set the color
-		colors[nodei] = minimumcolor;
+		colorsAux[nodei] = minimumcolor;
 	}
 
-	*numberOfColors = countCommunities(colors, nNodes);
+	*numberOfColors = countCommunities(colorsAux, nNodes);
+
+	int pos = 0;
+	int node = 0;
+	int* ptrcolors = new int[*numberOfColors];
+	for(int colori = 0; colori < *numberOfColors; colori++){
+		ptrcolors[colori] = pos;
+		for(int i = 0; i < nNodes; i++){
+			node = i; //nodes[i];
+			if(colorsAux[node] == colori){
+				colors[pos] = node;
+				pos++;
+			}
+		}
+	}
+
 
 	//test
 	/*int *idcolors = getCommunities(colors, nNodes);
@@ -511,28 +512,11 @@ int* getGraphColors(
 		cout<<idcolors[i]<<", ";
 	}
 	cout<< endl;*/
+	delete[] colorsAux;
 
-	return colors;
+	return ptrcolors;
 }
 
-
-int getNodesWithColor(
-					int* nodesColori, 
-					int* colors, 
-					int color, 
-					int nNodes)
-{
-	int pos = 0;
-
-	for(int i = 0; i < nNodes; i++){
-		if(colors[i] == color){
-			nodesColori[pos] = i;
-			pos++;
-		}
-	}
-
-	return pos;
-}
 /**
 	Apply the Label propagation algorithm in the sequential way
 
@@ -549,16 +533,14 @@ int* labelPropagationSemiSynchSeq(
 				const int nNodes,
 				const int nEdges)
 {
-	cout<< "Begin Label propagation sequential semi synchronous " << endl;
+	cout<< "seq semisync ";
 	int *labels = new int[nNodes];
-	int *nodes = new int[nNodes];
-	int *nodesColori = new int[nNodes];
-	int thereAreChanges = 1;
-	int maximumLabel = -1;
+	int changes = 1;
+	int maxLabel = -1;
 	int node;
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
-	int numberOfColors, nNodesColori = 0;
+	int nColors;
 	int t = 0;
 
 	unsigned int seed = time(NULL);
@@ -567,34 +549,38 @@ int* labelPropagationSemiSynchSeq(
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
-		nodes[i] = i;
 	}
 
-	int *colors = getGraphColors(nodes, tails, indexs, &numberOfColors, nNodes,nEdges);
-	cout << "Number of colors:" << numberOfColors << endl;
+	int *colors = new int[nNodes];
+	int *ptrcolors = getGraphColors(nullptr, tails, indexs, &nColors, colors, nNodes,nEdges);
+	//cout << "Number of colors:" << nColors << endl;
 
-	int maxIteration = 10;
-	while(thereAreChanges){//until a node dont have the maximum of their neightbors
+	int maxIteration = nNodes;
+	int index, nextIndex;
+	while(changes){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
-		thereAreChanges = 0;
+		changes = 0;
 
-		for(int colori = 0; colori < numberOfColors; colori++){
-			nNodesColori = getNodesWithColor(nodesColori, colors, colori, nNodes);
-
-			for(int i = 0; i < nNodesColori; i++){ //random permutation of Nodes
-				//cout<< nodesColori[i] << "\t" << "color:" << i; 
-				node = nodesColori[i];
-				maximumLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges);
-				if(maximumLabel != labels[node]){
-					labels[node] = maximumLabel;
-					thereAreChanges++;
+		for(int colori = 0; colori < nColors; colori++){
+			//cout << "color:" << colori << "[ ";
+			
+			index = ptrcolors[colori];
+			nextIndex = (colori + 1 < nColors)?ptrcolors[colori + 1]: nNodes; 
+			for(int i = index; i < nextIndex; i++){
+				node = colors[i];//get the neighbor
+				//cout<< node << " ";
+				maxLabel = getMaximumLabel(node, tails, indexs, labels, nNodes, nEdges);
+				if(maxLabel != labels[node]){
+					labels[node] = maxLabel;
+					changes++;
 				}
 			}
+			//cout << "]" << endl;
 		}
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
 		
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -605,9 +591,8 @@ int* labelPropagationSemiSynchSeq(
 		}
 	}
 
-	delete[] nodesColori;
-	delete[] nodes;
 	delete[] colors;
+	delete[] ptrcolors;
 
 	//printf("it %d, minchange %d, communities %d",t2 , minchange, com2);
 	return labels;
@@ -647,7 +632,7 @@ int* LPParallelSynchronous(
 		nodes[i] = i;
 	}
 
-	cout<< "Begin Label propagation parallel synchronous " << endl;
+	cout<< "par sync ";
 
 	//GPU memory
 	int *d_labels;
@@ -674,7 +659,7 @@ int* LPParallelSynchronous(
 
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
-	int maxIteration = 10;
+	int maxIteration = nNodes;
 
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
@@ -711,7 +696,7 @@ int* LPParallelSynchronous(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
 		
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -768,7 +753,7 @@ int* LPParallelAsynchronous(
 		nodes[i] = i;
 	}
 
-	cout<< "Begin Label propagation parallel asynchronous " << endl;
+	cout<< "par async ";
 
 	//GPU memory
 	int *d_labels;
@@ -795,7 +780,7 @@ int* LPParallelAsynchronous(
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
 
-	int maxIteration = 10;
+	int maxIteration = nNodes;
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
@@ -827,7 +812,7 @@ int* LPParallelAsynchronous(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
 		
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -875,86 +860,107 @@ int* LPParallelSemySynchronous(
 	int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, nBlocks);	//Blocks in a Grid
 
 	int *labels = new int[nNodes];
-	int *nodes = new int[nNodes];
-	int thereAreChanges = 1;
+	int changes = 1;
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
-		nodes[i] = i;
 	}
 
-	cout<< "Begin Label propagation parallel semi synchronous " << endl;
-
-	int numberOfColors;
-	int *colors = getGraphColors(nodes, tails, indexs, &numberOfColors, nNodes,nEdges);
-	cout << "Number of colors:" << numberOfColors << endl;
+	cout<< "par semisync ";
+	
+	int nColors;
+	int *colors = new int[nNodes];
+	int *ptrcolors = getGraphColors(nullptr, tails, indexs, &nColors, colors, nNodes,nEdges);
+	//cout << "Number of colors:" << nColors << endl;
 	int nNodesColori = 0;
-	int *nodesColori = new int[nNodes];
-
 
 	//GPU memory
 	int *d_labels;
-	int *d_labels_ant;
 	int *d_nodes;
 	int *d_tails;
 	int *d_indexs;
-	int *d_thereAreChanges;
+	int *d_changes;
 
 	cudaMalloc(&d_labels, nNodes * sizeof(int));
-	cudaMalloc(&d_labels_ant, nNodes * sizeof(int));
 	cudaMalloc(&d_nodes, nNodes * sizeof(int));
 	cudaMalloc(&d_tails, nEdges * sizeof(int));
 	cudaMalloc(&d_indexs, nNodes * sizeof(int));
-	cudaMalloc(&d_thereAreChanges, sizeof(int));
+	cudaMalloc(&d_changes, sizeof(int));
 
 	cudaMemcpy(d_tails, tails, nEdges * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_indexs, indexs, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_nodes, nodes, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_nodes, colors, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
 	int t = 0;
 	unsigned int seed = time(NULL);
 
 	int com = 0, comAnt = 0;
 	int res = 0, resAnt = -1;
-	int maxIteration = 10;
 
-	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
+	int maxIteration = nNodes;
+	int index, nextIndex;
+	int tamLow, tamHigh;
+	while(changes > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
 		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
-		cudaMemset(d_thereAreChanges, 0, sizeof(int));
+		cudaMemset(d_changes, 0, sizeof(int));
 		
 
-		for(int colori = 0; colori < numberOfColors; colori++){
-			nNodesColori = getNodesWithColor(nodesColori, colors, colori, nNodes);
-			cudaMemcpy(d_nodes, nodesColori, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+		for(int colori = 0; colori < nColors; colori++){
+			//printf("color: %d [ ", colori );
+ 
+			index = ptrcolors[colori];
+			nextIndex = (colori + 1 < nColors)?ptrcolors[colori + 1]: nNodes;
+			nNodesColori = (nextIndex - index < 0)?1 : nextIndex - index;
 
-			nBlocks = nNodesColori / nTPB + ((nNodesColori % nTPB == 0)? 0 : 1); 
+			tamLow = nNodesColori / 2;
+			nBlocks = (tamLow / 2)  / nTPB + ((tamLow % nTPB == 0)? 0 : 1); 
 			numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, nBlocks);
-			lp_compute_maximum_labels_kernel<<<numberOfBlocks, nTPB>>>(
-																		true,
+
+			lp_compute_maximum_labels_semi<<<numberOfBlocks, nTPB>>>(
 																		d_nodes, 
 																		d_tails, 
 																		d_indexs, 
-																		d_labels,
 																		d_labels, 
-																		d_thereAreChanges, 
+																		d_changes, 
 																		seed, 
-																		nNodesColori,
+																		nNodes,
 																		nEdges,
-																		nNodes
+																		index,
+																		index + (nNodesColori / 2) 
 																	);
 			cudaDeviceSynchronize();
 
+			tamHigh = (nNodesColori % 2 == 0)? nNodesColori / 2: (nNodesColori / 2) + 1;
+			nBlocks = (tamHigh / 2)  / nTPB + ((tamHigh % nTPB == 0)? 0 : 1); 
+			numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, nBlocks);
+			lp_compute_maximum_labels_semi<<<numberOfBlocks, nTPB>>>(
+																		d_nodes, 
+																		d_tails, 
+																		d_indexs, 
+																		d_labels, 
+																		d_changes, 
+																		seed, 
+																		nNodes,
+																		nEdges,
+																		index + (nNodesColori / 2),
+																		nextIndex
+																	);
+
+			//TODO: Partir en 2
+
+			//printf("]\n");
+			//cudaDeviceSynchronize();
 		}
 
-		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(int), cudaMemcpyDeviceToHost);
+		cudaMemcpy(&changes, d_changes, sizeof(int), cudaMemcpyDeviceToHost);
 		cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 		t++;
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
 		
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -967,13 +973,13 @@ int* LPParallelSemySynchronous(
 	//cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_labels);
-	cudaFree(d_labels_ant);
 	cudaFree(d_nodes);
 	cudaFree(d_tails);
 	cudaFree(d_indexs);
-	cudaFree(d_thereAreChanges);
+	cudaFree(d_changes);
 
-	delete[] nodes;
+	delete[] ptrcolors;
+	delete[] colors;
 
 	return labels;
 }
@@ -1011,8 +1017,6 @@ int* LPParallel_V2(
 	
 	int *d_F;			//size:nEdges
 	int *d_F_s;			//size:nEdges
-	int *d_F_aux;		//size:nEdges
-	int *d_F_incr;		//size:nEdges
 	
 	int *d_S;			//size:F[n - 1] + 1
 	int *d_W;			//size:F[n - 1] + 1
@@ -1029,8 +1033,6 @@ int* LPParallel_V2(
 	
 	cudaMalloc(&d_F, nEdges * sizeof(int));
 	cudaMalloc(&d_F_s, nEdges * sizeof(int));
-	cudaMalloc(&d_F_aux, nEdges * sizeof(int));
-	cudaMalloc(&d_F_incr, nEdges * sizeof(int));
 
 	cudaMalloc(&d_S, nEdges * sizeof(int));
 	cudaMalloc(&d_W, nEdges * sizeof(int));
@@ -1042,9 +1044,6 @@ int* LPParallel_V2(
 
 	cudaMemcpy(d_tails, tails, nEdges * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_indexs, indexs, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-	cudaMemset(d_F_s, 0, nEdges * sizeof(int));
-	cudaMemset(d_F_aux, 0, nEdges * sizeof(int));
-	cudaMemset(d_F_incr, 0, nEdges * sizeof(int));
 	//cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 	
 	//Number of threads and blocks
@@ -1054,21 +1053,18 @@ int* LPParallel_V2(
 	int nBlocksNodes = MIN(MAX_KERNEL_BLOCKS, nBNodes);							//Blocks in a Grid
 	int nBlocksEdges = MIN(MAX_KERNEL_BLOCKS, nBEdges);
 
-	cout<< "Begin Label propagation parallel asynchronous 2" << endl;
+	cout<< "par async2 ";
 
-	int nBScan = nEdges / 1024 + ((nEdges % 1024 == 0)? 0 : 1);
-	const dim3 blockSize(1024/2, 1, 1);
-  	const dim3 gridSize(nBScan, 1, 1);
-
+	//cout << "nBlocksNodes: " << nBlocksNodes << " nTPB: " << nTPB << endl; 
 	lp_init_labels<<<nBlocksNodes, nTPB>>>(d_labels, nNodes);
-	check_CUDA_Error("Kernel lp_copy_array invocation");
+	check_CUDA_Error("Kernel lp_init_labels invocation");
 	cudaCheckError( cudaDeviceSynchronize() );
 
 	maxIteration = nNodes; 
-	int aux[nEdges];
-	int auxNodes[nNodes];
+	int* aux = new int[nEdges];
+	int* auxNodes = new int[nNodes];
 
-	while(numberChanges > 0){//until a node dont have the maximum label of their neightbors		
+	while(numberChanges > 0){//until a node dont have the maximum label of their neightbors	 
 		lp_copy_array<<<nBlocksNodes, nTPB>>>(d_labels_ant, d_labels, nNodes);
 		check_CUDA_Error("Kernel lp_copy_array invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
@@ -1089,29 +1085,13 @@ int* LPParallel_V2(
 		check_CUDA_Error("Kernel lp_init_boundaries_2 invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
 
-
-
-		cudaMemcpy(aux, d_F, nEdges * sizeof(int), cudaMemcpyDeviceToHost);
-		printarray(aux, nEdges);
-
-
-
 		//Scan
-		lp_scan<<<gridSize, blockSize, 1024 * sizeof(int)>>>(d_F, d_F_s, 1024, d_F_aux);
-		check_CUDA_Error("Kernel lp_scan_1 invocation");
-		cudaCheckError( cudaDeviceSynchronize() );
-		lp_scan<<<dim3(1,1,1), blockSize, 1024 * sizeof(int)>>>(d_F_aux, d_F_incr, 1024, NULL);
-		check_CUDA_Error("Kernel lp_scan_2 invocation");
-		cudaCheckError( cudaDeviceSynchronize() );
-		lp_sum<<<gridSize, dim3(1024,1,1)>>>(d_F_incr, d_F_s, nEdges);
-		check_CUDA_Error("Kernel lp_sum invocation");
-		cudaCheckError( cudaDeviceSynchronize() );
+		sum_scan_blelloch(d_F_s, d_F, nEdges);
+		//cudaCheckError( cudaDeviceSynchronize() );
 		
-
-
-		cudaMemcpy(aux, d_F_s, nEdges * sizeof(int), cudaMemcpyDeviceToHost);
-		printarray(aux, nEdges);
-
+		//TESTTTT
+		//cudaMemcpy(aux, d_F_s, nEdges * sizeof(int), cudaMemcpyDeviceToHost);
+		//printarray(aux, nEdges);
 
 
 		lp_init_S<<<nBlocksEdges, nTPB>>>(d_S, d_F_s, nEdges);
@@ -1150,7 +1130,7 @@ int* LPParallel_V2(
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		cout << " t:" << t << " changes:" << numberChanges << " communities:" << com << endl;
+		//cout << " t:" << t << " changes:" << numberChanges << " communities:" << com << endl;
 		
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -1166,8 +1146,6 @@ int* LPParallel_V2(
 	cudaFree(d_labels_v);
 	cudaFree(d_F);
 	cudaFree(d_F_s);
-	cudaFree(d_F_aux);
-	cudaFree(d_F_incr);
 	cudaFree(d_S);
 	cudaFree(d_W);
 	cudaFree(d_S_ptr);
@@ -1176,11 +1154,13 @@ int* LPParallel_V2(
 	cudaFree(d_indexs);
 	cudaFree(d_numberChanges);
 
+	delete[] aux;
+	delete[] auxNodes;
+
 	return labels;
 }
 
-/*int* labelPropagationParallel_V2(
-				float* costs, 
+int* LPParallelAsynchronous_v2(
 				int* tails, 
 				int* indexs, 
 				const int nNodes,
@@ -1188,125 +1168,100 @@ int* LPParallel_V2(
 {
 	//int NUMBER_OF_THREADS = 32;
 	//int SHARED_MEMORY_SIZE = (32 + 16) * nNodes * 4;
-
 	//Number of threads
 	int nTPB = MAX_THREADS_PER_BLOCK;											//Threads in a block  256
-	int MAX_KERNEL_BLOCKS = 30;													//Max blocks in a Grid
-	//int numberOfThreadsPerBlock = nTPB 
-	//int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, ((nNodes + nTPB - 1)/nTPB));	//Blocks in a Grid
+	int nBlocks = nNodes / nTPB + ((nNodes % nTPB == 0)? 0 : 1); 
+	int numberOfBlocks = MIN(MAX_KERNEL_BLOCKS, nBlocks);	//Blocks in a Grid
 
 	int *labels = new int[nNodes];
-	//int *nodes = new int[nNodes];
-
-	int tamLow = nNodes / 2;
-	int tamHigh = (nNodes % 2 == 0)? nNodes / 2: (nNodes / 2) + 1;
-
-	int blocksLow = MIN(MAX_KERNEL_BLOCKS, ((tamLow + nTPB - 1)/nTPB));
-	int blocksHigh = MIN(MAX_KERNEL_BLOCKS, ((tamHigh + nTPB - 1)/nTPB));
-
-	int *nodesLow = new int[tamLow];
-	int *nodesHigh = new int[tamHigh];
-
-	bool thereAreChanges = true;
+	int *nodes = new int[nNodes];
+	int thereAreChanges = 1;
 	//set the community to each node
 	for(int i = 0;i < nNodes; i++){
 		labels[i] = i;
-		if(i < tamLow){
-			nodesLow[i] = i;
-		}
-		else{
-			nodesHigh[i - tamLow] = i;
-		}
-		
+		nodes[i] = i;
 	}
+
+	cout<< "par async (version 2)" << endl;
 
 	//GPU memory
 	int *d_labels;
-	int *d_nodesLow;
-	int *d_nodesHigh;
+	int *d_labels_ant;
+	int *d_nodes;
 	int *d_tails;
 	int *d_indexs;
-	bool *d_thereAreChanges;
+	int *d_thereAreChanges;
 
 	cudaMalloc(&d_labels, nNodes * sizeof(int));
-
-	cudaMalloc(&d_nodesLow, tamLow * sizeof(int));
-	cudaMalloc(&d_nodesHigh, tamHigh * sizeof(int));
-
+	cudaMalloc(&d_labels_ant, nNodes * sizeof(int));
+	cudaMalloc(&d_nodes, nNodes * sizeof(int));
 	cudaMalloc(&d_tails, nEdges * sizeof(int));
 	cudaMalloc(&d_indexs, nNodes * sizeof(int));
-	cudaMalloc(&d_thereAreChanges, sizeof(bool));
+	cudaMalloc(&d_thereAreChanges, sizeof(int));
 
 	cudaMemcpy(d_tails, tails, nEdges * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_indexs, indexs, nNodes * sizeof(int), cudaMemcpyHostToDevice);
-	
 	cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_nodes, nodes, nNodes * sizeof(int), cudaMemcpyHostToDevice);
 
 	int t = 0;
-	long seed = time(NULL);
-	while(thereAreChanges){//until a node dont have the maximum label of their neightbors
+	unsigned int seed = time(NULL);
+	int com = 0, comAnt = 0;
+	int res = 0, resAnt = -1;
 
-		thereAreChanges =  false;
+	int maxIteration = nNodes;
+	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
+		//thereAreChanges =  0;
+		//cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(int), cudaMemcpyHostToDevice);
+		cudaMemset(d_thereAreChanges, 0, sizeof(int));
 		
-		getPermutation(nodesLow, tamLow); 
-		getPermutation(nodesHigh, tamHigh); 
-
-		cudaMemcpy(d_thereAreChanges, &thereAreChanges, sizeof(bool), cudaMemcpyHostToDevice);
-		cudaMemcpy(d_nodesLow, nodesLow, tamLow * sizeof(int), cudaMemcpyHostToDevice);
-		cudaMemcpy(d_nodesHigh, nodesHigh, tamHigh * sizeof(int), cudaMemcpyHostToDevice);
-		//cudaMemcpy(d_labels, labels, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+		getPermutation(nodes, nNodes);
+		cudaMemcpy(d_nodes, nodes, nNodes * sizeof(int), cudaMemcpyHostToDevice);
+		//cudaMemcpy(d_labels_ant, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToDevice);
 
 		//Parallel
-		lp_compute_maximum_labels_kernel<<<blocksLow, nTPB>>>(
-																	d_nodesLow, 
+		lp_compute_maximum_labels_kernel<<<numberOfBlocks, nTPB>>>(
+																	false,
+																	d_nodes, 
 																	d_tails, 
 																	d_indexs, 
 																	d_labels,
 																	d_labels, 
-																	//d_labels_aux,
 																	d_thereAreChanges, 
 																	seed, 
-																	tamLow,
+																	nNodes,
 																	nEdges,
 																	nNodes
 																);
-		check_CUDA_Error("Kernel nodes Low invocation");
-		cudaCheckError(cudaDeviceSynchronize());
+		cudaDeviceSynchronize();
 
-		lp_compute_maximum_labels_kernel<<<blocksHigh, nTPB>>>(
-																	d_nodesHigh, 
-																	d_tails, 
-																	d_indexs, 
-																	d_labels,
-																	d_labels, 
-																	//d_labels_aux,
-																	d_thereAreChanges, 
-																	seed, 
-																	tamHigh,
-																	nEdges,
-																	nNodes
-																);
-		check_CUDA_Error("Kernel nodes High invocation");
-		cudaCheckError(cudaDeviceSynchronize());
-
-		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(bool), cudaMemcpyDeviceToHost);
+		cudaMemcpy(&thereAreChanges, d_thereAreChanges, sizeof(int), cudaMemcpyDeviceToHost);
+		cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 		t++;
-		//cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
-		if(t > nNodes)
+
+		com = countCommunities(labels, nNodes);
+		res = comAnt - com;
+		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		
+		if(res == 0 && resAnt ==0){ break; }
+		comAnt = com;
+		resAnt = res;
+
+		if(t > maxIteration){
 			break;
+		}
 	}
-	cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+	//cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_labels);
-	cudaFree(d_nodesLow);
-	cudaFree(d_nodesHigh);
+	cudaFree(d_labels_ant);
+	cudaFree(d_nodes);
 	cudaFree(d_tails);
 	cudaFree(d_indexs);
 	cudaFree(d_thereAreChanges);
 
-	delete[] nodesLow;
-	delete[] nodesHigh;
+	delete[] nodes;
 
 	return labels;
-}*/
+}
 //----------------------------------------------------------------------------------------

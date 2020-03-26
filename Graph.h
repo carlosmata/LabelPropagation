@@ -21,56 +21,31 @@ using namespace std;
 class Graph
 {
     public:
-        __host__ Graph(string filename, int type, int sorted);
-        __host__ Graph(int numberNodes);
-        __host__ Graph(float *costs, int *tails, int *indexs, int nEdges, int nNodes);
-        __host__ ~Graph();
-		
+        Graph(string filename, int type, int sorted);
+        ~Graph();
+
         //Graph
-        __host__ int getNumberNodes();
-        __host__ int getNumberEdges();
-        __host__ void computeCentrality();
-        __host__ void computePartCentrality(int start, int end);
-        __host__ void computeCentralityPathFloydWharshall(
-                                                List paths[], 
-                                                float* centrality, 
-                                                int source, int tail, 
-                                                int nNodes);
-        __host__ void computeCentralityPathFloydWharshall_2(
-                                                List paths[], 
-                                                float* centrality, 
-                                                int i, 
-                                                int j, 
-                                                int nNodes);
-        __host__ void printCentrality();
-        __host__ void dijkstra(int source);
-        __host__ void dijkstraDevice(int source);
-        __host__ void floydWharshall(
-                                    float* costs, 
-                                    int* tails, 
-                                    int* indexs, 
-                                    float* centrality,
-                                    const int nNodes,
-                                    const int nEdges);
-        __host__ float* getCosts();
-        __host__ int* getTails();
-        __host__ int* getIndexs();
-        __host__ int* getNodesArray();
-		__host__ void setNodeData(float *costs, int *tails, int *indexs, int nEdges, int nNodes);
+        int getNumberNodes();
+        int getNumberEdges();
+        float* getCosts();
+        int* getTails();
+        int* getIndexs();
+        int* getNodesArray();
+        void setNodeData(float *costs, int *tails, int *indexs, int nEdges, int nNodes);
+        float* getEdgesCost(int source);
+        int* getEdgesEdpoints(int source);
+
 		//Node 
-		__host__ float getCentrality(int source);
-        __host__ string getName(int id);
-        __host__ int getId(string name);
-		
-        __host__ string removeWhiteSpaces(string s);
-        __host__ int* getRealCommunities(string truedata);
+        string getName(int id);
+        int getId(string name);
 
-        __host__ bool saveCommunitiesinFile(string filename, int* labels);
-        __host__ int* getCommunities(int *labels, int* numCommunities);
-        __host__ int* renameLabels(int* labels);
+        string removeWhiteSpaces(string s);
+        int* getRealCommunities(string truedata);
 
-        //To centrality
-        float *centrality = nullptr;
+        bool saveCommunitiesinFile(string filename, int* labels);
+        int* getCommunities(int *labels, int* numCommunities);
+        //int* renameLabels(int* labels);
+
         map<string, int> nodes;
         int numberNodes;
 		int numberEdges;
@@ -86,22 +61,10 @@ class Graph
         int *indexs = nullptr;
 
         //Graph
-        __host__ bool addEdges(string filename);
-        __host__ vector<string> split (string s, string delimiter);
-        __host__ bool createFromFile(string filename, int directed, int sorted);
-        __host__ bool createFromFileNET(string filename, int sorted);
-        __host__ int readNumberOfNodes(string filename);
-        __host__ __device__ int getSmallDistance(bool *visited, int *distance);
-        __host__ __device__ void computeCentralityPath(int source, int tail, float incremento, List parents[]);
-
-
-        //Node
-        __host__ __device__ float* getEdgesCost(int source);
-        __host__ __device__ int* getEdgesEdpoints(int source);
-        __host__ __device__ int getNextIndex(int source);
-        __host__ void resetCentrality(int source);
-        __host__ __device__ void incrementCentrality(int source, float increment);
-        __host__ int getRealCommunity(int* communities, int label, int numCommunities);
+        bool addEdges(string filename);
+        vector<string> split (string s, string delimiter);
+        bool createFromFile(string filename, int directed, int sorted);
+        bool createFromFileNET(string filename, int sorted);
         
 };
 

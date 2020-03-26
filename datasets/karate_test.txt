@@ -7,7 +7,6 @@
 # undirected. An often discussed problem using this dataset is to find the 
 # two groups of people into which the karate club split after an argument 
 # between two teachers.
-# Nodes: 6 Edges: 18
 # FromNodeId	ToNodeId
 1	2
 1	3

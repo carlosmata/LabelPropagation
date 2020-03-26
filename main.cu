@@ -1,332 +1,73 @@
-#include <iostream>
-#include "Graph.h"
-#include "List.h"
-#include <bits/stdc++.h>
-#include <chrono>
-#include <cuda_runtime.h>
-
-#include "algorithms.h"
-//#include "community_measures.cu"
+#include "tests.h"
 
 using namespace std;
-
-//---------------------------------------------Call methods--------------------------------------------
-
-/**
-	Print the centrality 
-*/
-void printCentrality(Graph *g, int nNodes, float *centralityGraph, bool directed){
-	float value;
-	string name = "";
-
-
-	cout << endl;
-	for (int node_i = 0; node_i < nNodes; node_i++) {
-		value = (directed)? centralityGraph[node_i]:centralityGraph[node_i] / 2;
-
-		name = g->getName(node_i); 
-		cout << "Node: " << node_i
-			 << ":" << name
-			 << " Centrality:" 
-			 << value << endl;
-	}
-}
-
-/**
-	Print the communities computed
-*/
-void printCommunities(Graph *g, int nNodes, int *communities, string truedata){
-	/*float value;
-	string name = "";
-
-	cout << endl;
-	for (int node_i = 0; node_i < nNodes; node_i++) {
-		value = communities[node_i];
-
-		name = g->getName(node_i); 
-		cout << "Node: " << node_i
-			 << ":" << name
-			 << " Community:" 
-			 << value << endl;
-	}*/
-
-	cout << "\nModularity: "<< getModularity(g->getTails(), g->getIndexs(), g->getNumberNodes(), g->getNumberEdges(), communities) << endl;
-	if(truedata != ""){
-		int *realCommunities = g->getRealCommunities(truedata);
-		/*
-		for(int i = 0; i < nNodes; i++){
-			cout << i << "\t" << realCommunities[i] << endl;
-		}
-
-		cout << "communities calculated:"<< endl;
-		for(int i = 0; i < nNodes; i++){
-			cout << i << "\t" << communities[i] << endl;
-		}*/
-
-		if(realCommunities != nullptr){
-			float nmi = getNMI(communities, realCommunities, g->getNumberNodes());
-			cout << "NMI: "<< nmi << endl;
-		}
-
-		delete[] realCommunities;
-	}
-	
-	cout << "\nNumber of communities: " << countCommunities(communities, nNodes) << endl;
-}
-
-/**
-	Compute the betweenness centrality in a parallel way
-*/
-void centrality_parallel_brandes(Graph *g){
-	verifyDeviceCUDA();
-	
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-
-	cout << "nNodes:" << nNodes << endl;
-	float centralityGraph[nNodes];
-	//memset(centralityGraph, 0,  sizeof(float) * nNodes);
-	
-	for(int i = 0; i < nNodes; i++){
-		centralityGraph[i] = 0;
-	}
-
-	//Data GPU
-	//float* costs =  g->getCosts();
-	int* tails = g->getTails();
-	//int* indexs = g->getIndexs();
-	int* nodes = g->getNodesArray();	
-
-	/*for(int i = 0; i < nNodes; i++){
-		cout << nodes[i] << "-->" << tails[i] << endl;
-	}*/ 
-
-	auto start = chrono::high_resolution_clock::now();
-	ios_base::sync_with_stdio(false);
-
-
-	brandesParallel(nodes, tails, centralityGraph, nNodes, nEdges);
-	//bc_bfs(nNodes,nEdges, nodes, tails, centralityGraph);
-	
-	auto end = chrono::high_resolution_clock::now();
-	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
-	time_taken *= 1e-9;
-	
-	//printCentrality(g, nNodes, centralityGraph, false);
-
-	cout << "Parallel brandes time taken by program is : " << fixed
-		 << time_taken << setprecision(9);
-	cout << " sec" << endl;
-
-	//delete[] nodes;
-}
-/**
-	Compute the beteweenness centrality  in a sequential way
-*/
-void centrality_sequential_brandes(Graph *g){
-	cout << "Secuencial" << endl;
-	
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-	cout << "nNodes:" << nNodes << endl;
-	cout << "nEdges:" << nEdges << endl;
-	
-	//-----------------------------Begin time------------------------------------------------
-	auto start = chrono::high_resolution_clock::now();
-	ios_base::sync_with_stdio(false);
-
-	float* centralityG1 = brandesSequential(g->getCosts(), g->getTails(), g->getIndexs(), nNodes, nEdges);
-
-	auto end = chrono::high_resolution_clock::now();
-	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
-	time_taken *= 1e-9;
-	//---------------------------------------------------------------------------------------
-	
-	//printCentrality(g, nNodes, centralityG1, false);
-
-	delete[] centralityG1;
-
-	cout << "Secuencial Brandes time taken by program is : " << fixed
-		 << time_taken << setprecision(9);
-	cout << " sec" << endl;
-}
-/**
-	Compute the label propagation in a sequential way
-*/
-void label_propagation_sequential(Graph *g, string truedata, int mode){
-	cout << "Label Propagation Secuential" << endl;
-
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-	cout << "nNodes:" << nNodes << endl;
-	cout << "nEdges:" << nEdges << endl;
-
-	//-----------------------------Begin time to algorithm------------------------------------------------
-	auto start = chrono::high_resolution_clock::now();
-	ios_base::sync_with_stdio(false);
-	
-	int* labels = nullptr;
-	switch(mode){
-		case 0://synchronous
-			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, true);
-		break;
-		case 1://asynchronous
-			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, false);
-		break;
-		case 2://semi-synchronous
-			labels = labelPropagationSemiSynchSeq(g->getTails(), g->getIndexs(), nNodes, nEdges);
-		break;
-		case 3://semi-synchronous
-			labels = labelPropagationSequential(g->getTails(), g->getIndexs(), nNodes, nEdges, false);
-		break;
-	}
-
-	auto end = chrono::high_resolution_clock::now();
-	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
-	time_taken *= 1e-9;
-	//---------------------------------------------------------------------------------------
-	printCommunities(g, nNodes, labels, truedata);
-	//g->saveCommunitiesinFile("output.groups", labels); 	//print in a file
-
-	delete[] labels;
-
-	cout << "Secuencial Label propagation time taken by program is : " << fixed
-		 << time_taken << setprecision(9);
-	cout << " sec" << endl;
-}
-
-/**
-	Compute the label propagation in a parallel way
-*/
-void label_propagation_parallel(Graph *g, string truedata, int mode){
-	cout << "Label Propagation Parallel" << endl;
-
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-	cout << "nNodes:" << nNodes << endl;
-	cout << "nEdges:" << nEdges << endl;
-
-	//-----------------------------Begin time to algorithm------------------------------------------------
-	auto start = chrono::high_resolution_clock::now();
-	ios_base::sync_with_stdio(false);
-	
-	int* labels = nullptr;
-	switch(mode){
-		case 0: //Synchronous mode
-			labels = LPParallelSynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
-		break;
-		case 1: //Asynchronous mode
-			labels = LPParallelAsynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
-		break;
-		case 2: //SemySynchronous mode
-			labels = LPParallelSemySynchronous(g->getTails(), g->getIndexs(), nNodes, nEdges);
-		break;
-		case 3: //Asynchronous 2 mode
-			labels = LPParallel_V2(g->getTails(), g->getIndexs(), nNodes, nEdges);
-		break;
-	}
-
-	cout << "end calculation parallel" << endl;
-	auto end = chrono::high_resolution_clock::now();
-	double time_taken = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
-	time_taken *= 1e-9;
-	//---------------------------------------------------------------------------------------
-	printCommunities(g, nNodes, labels, truedata);
-
-	delete[] labels;
-
-	cout << "Parallel Label propagation time taken by program is : " << fixed
-		 << time_taken << setprecision(9);
-	cout << " sec" << endl;
-}
-
-/**
-	Print the sender graph 
-*/
-void printGraph(Graph *g){
-	int *tails = g->getTails();
-	int *indexs = g->getIndexs();
-	int nNodes = g->getNumberNodes();
-	int nEdges = g->getNumberEdges();
-	int start, end;
-	string name;
-
-	/*for(int i = 0; i < nNodes; i++){
-		cout<< "[" << indexs[i] << "],";
-	}
-	cout << endl;*/
-
-	for(int i = 0; i < nNodes; i++){
-		name = g->getName(i);
-		start = indexs[i];
-		end = (i + 1 < nNodes)? indexs[i + 1]: nEdges;
-		
-		cout<< "[" << i << "]Node: "<< name << endl;
-		for(int j = start; j < end; j++){
-			cout << "," <<  g->getName(tails[j]) << "("<< tails[j] << ")";
-		}
-		cout<< endl;
-
-	}
-}
-
 //-----------------------------------------------main--------------------------------------------------------------
 
 int main(int argc, char **argv)
 {
+	int test = 0;
 	string filename = "datasets/karate_test.txt";
 	int type = 2; //1-directed, 2-undirected, 3-NET extension
 	int sorted = 0;
 	string truedata = "";
-	int mode = 0; //0-synchronous, 1-asychronous, 2-semisynchronous
+	int mode = 0; //0-synchronous, 1-asychronous, 2-semisynchronous(colors), 3-asynchronous
 
 	if(argc == 2){//Add the filename of the datasets
-		filename = argv[1];
+		test = atoi(argv[1]);
 	}
-	if(argc == 3){//Add the type of the filename
-		filename = argv[1];
-		type = atoi(argv[2]);
+	if(argc == 3){//Add the filename of the datasets
+		test = atoi(argv[1]);
+		filename = argv[2];
 	}
-	if(argc == 4){//Add the type of the filename and a sorted way desc-asc
-		filename = argv[1];
-		type = atoi(argv[2]);
-		sorted = atoi(argv[3]);
+	if(argc == 4){//Add the type of the filename
+		test = atoi(argv[1]);
+		filename = argv[2];
+		type = atoi(argv[3]);
 	}
-	if(argc == 5){//Add the type of the filename and a sorted way desc-asc and a file with true data
-		filename = argv[1];
-		type = atoi(argv[2]);
-		sorted = atoi(argv[3]);
-		truedata = argv[4];
+	if(argc == 5){//Add the type of the filename and a sorted way desc-asc
+		test = atoi(argv[1]);
+		filename = argv[2];
+		type = atoi(argv[3]);
+		sorted = atoi(argv[4]);
 	}
 	if(argc == 6){//Add the type of the filename and a sorted way desc-asc and a file with true data
-		filename = argv[1];
-		type = atoi(argv[2]);
-		sorted = atoi(argv[3]);
-		truedata = argv[4];
-		mode = atoi(argv[5]);
+		test = atoi(argv[1]);
+		filename = argv[2];
+		type = atoi(argv[3]);
+		sorted = atoi(argv[4]);
+		truedata = argv[5];
 	}
+	if(argc == 7){//Add the type of the filename and a sorted way desc-asc and a file with true data
+		test = atoi(argv[1]);
+		filename = argv[2];
+		type = atoi(argv[3]);
+		sorted = atoi(argv[4]);
+		truedata = argv[5];
+		mode = atoi(argv[6]);
+	}
+
 	cout<<"argc:"<< argc << endl;
 
-	Graph *g = new Graph(filename, type, sorted);
-	if(g->getNumberNodes() > 0)
-	{
-		cout << "Dataset: " << filename << endl;
-		cout << "Number of Nodes: " << g->getNumberNodes() << endl;
-		cout << "Number of Edges: " << g->getNumberEdges() << endl;
-
-		//centrality_sequential_brandes(g);
-		//centrality_parallel_brandes(g);
-		//printGraph(g);
-		label_propagation_sequential(g, truedata, mode);
-		label_propagation_parallel(g, truedata, mode);
+	switch(test){
+		case 0:
+			testGraph(filename, type, sorted, truedata, mode);
+		break;
+		case 1:
+			testNETFiles();
+		break;
+		case 2:
+			testTrueData();
+		break;
+		case 3:
+			testMediumFiles();
+		break;
+		case 4:
+			testBigFiles();
+		break;
+		case 5://test the last algorithm
+			testModeAlgorithm(3);
+		break;
 	}
-	else
-		cout << "Data null in the dataset";
-		
-	delete[] g->getCosts();
-	delete[] g->getTails();
-	delete[] g->getIndexs();
-	delete g;
 }
 
 
