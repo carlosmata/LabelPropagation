@@ -89,30 +89,6 @@ void bc_bfs_back_sum_kernel(
 //--------------Kernels Communities------------------------
 
 //------------------------Version 1------------------------------------------
-//Kernel 1 Code parallel to get the permutation of the nodes
-__global__
-void lp_permutation_kernel_1(
-							int *nodes,			//Array of nodes
-							int n_count,		//Number of nodes
-							unsigned int seed	//Seed to generate random numbers
-						)
-{
-	int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	int aux;
-
-	curandState_t state;
-	curand_init(seed, /* the seed controls the sequence of random values that are produced */
-				0, /* the sequence number is only important with multiple cores */
-				0, /* the offset is how much extra we advance in the sequence for each call, can be 0 */
-				&state);
-
-	int rand_pos = curand(&state) % n_count; //random( n_count, seed);
-	if(rand_pos < n_count && rand_pos > 0){
-		aux = atomicExch(&nodes[tid], nodes[rand_pos]);
-		atomicExch(&nodes[rand_pos], aux);
-	}
-} 
-
 //Kernel 2 Code parallel to count the numbers of labes in node's edges
 __device__ 
 void warpReduce(volatile int* sdata, int tid) {
@@ -692,25 +668,31 @@ void lp_reduce(
 
 		index = sptr[idx];
 		nextIndex = (idx + 1 < nNodes)? sptr[idx + 1]:F_s[nEdges - 1] + 1; 
-		tam = (nextIndex - index < 0)? 1 : nextIndex - index;;
-		maxIndexs = new int[tam];
+		tam = (nextIndex - index < 0)? 1 : nextIndex - index;
+		
+		if(tam > 1){
+			maxIndexs = new int[tam];
 
-		for(int edgei = index; edgei < nextIndex; edgei++){
-			if(numberMax < W[edgei]){
-				countMax = 0;
-				numberMax = W[edgei];
-				maxIndexs[countMax] = edgei;
-				countMax++;
+			for(int edgei = index; edgei < nextIndex; edgei++){
+				if(numberMax < W[edgei]){
+					countMax = 0;
+					numberMax = W[edgei];
+					maxIndexs[countMax] = edgei;
+					countMax++;
+				}
+				else if(numberMax == W[edgei]){
+					maxIndexs[countMax] = edgei;
+					countMax++;
+				}
 			}
-			else if(numberMax == W[edgei]){
-				maxIndexs[countMax] = edgei;
-				countMax++;
-			}
+			I[idx] = maxIndexs[curand(&state) % countMax];
+			delete[] maxIndexs;
 		}
-		I[idx] = maxIndexs[curand(&state) % countMax];
-
-		idx += blockDim.x * gridDim.x;
-		delete[] maxIndexs;
+		else if(tam == 1){
+			I[idx] = index;	
+		}
+		
+		idx += blockDim.x * gridDim.x;		
 	}
 }
 //---------------------

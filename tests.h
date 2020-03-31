@@ -308,7 +308,7 @@ void testGraphAllModes(string filename, int type, int sorted, string truedata){
 		<< "Mod"   << "\t" 
 		<< "NMI"   << "\t"
 		<< "Time"  << endl; 
-		//testLabelGraph(g, truedata, 3);
+		testLabelGraph(g, truedata, 3);
 		testLabelGraph(g, truedata, 2);
 		testLabelGraph(g, truedata, 1);
 		testLabelGraph(g, truedata, 0);
@@ -323,20 +323,8 @@ void testGraphAllModes(string filename, int type, int sorted, string truedata){
 	delete g;
 }
 
-
-void testNETFiles(){
+void testNETFilesAllModes(int sorted){
 	int type = 3;
-	int sorted = 0;
-	cout << "NO SORTED" << endl;
-	testGraphAllModes("datasets/converted/karate.net", type, sorted, "");
-	testGraphAllModes("datasets/converted/lesmiserables.net", type, sorted, "");
-	testGraphAllModes("datasets/converted/football.net", type, sorted, "");
-	testGraphAllModes("datasets/converted/4adjnoun.net", type, sorted, "");
-	testGraphAllModes("datasets/converted/5powergrid.net", type, sorted, "");
-	testGraphAllModes("datasets/converted/4internet.net", type, sorted, "");
-
-	sorted = 1;
-	cout << "SORTED" << endl;
 	testGraphAllModes("datasets/converted/karate.net", type, sorted, "");
 	testGraphAllModes("datasets/converted/lesmiserables.net", type, sorted, "");
 	testGraphAllModes("datasets/converted/football.net", type, sorted, "");
@@ -345,21 +333,9 @@ void testNETFiles(){
 	testGraphAllModes("datasets/converted/4internet.net", type, sorted, "");
 }
 
-void testTrueData(){
-	int type = 2;
-	int sorted = 0;
-	cout << "NO SORTED" << endl;
-	testGraphAllModes("datasets/true-data/email/email-Eu-core.txt", type, sorted, 
-					  "datasets/true-data/email/email-Eu-core-department-labels.txt");
-	testGraphAllModes("datasets/true-data/grass_web/grass_web.pairs", type, sorted, 
-					  "datasets/true-data/grass_web/grass_web.labels");
-	testGraphAllModes("datasets/true-data/karate/karate_edges_77.txt", type, sorted, 
-					  "datasets/true-data/karate/karate_groups.txt");
-	testGraphAllModes("datasets/true-data/terrorists/terrorist.pairs", type, sorted, 
-					  "datasets/true-data/terrorists/terrorist.groups");
 
-	sorted = 1;
-	cout << "SORTED" << endl;
+void testNMIFilesAllModes(int sorted){
+	int type = 2;
 	testGraphAllModes("datasets/true-data/email/email-Eu-core.txt", type, sorted, 
 					  "datasets/true-data/email/email-Eu-core-department-labels.txt");
 	testGraphAllModes("datasets/true-data/grass_web/grass_web.pairs", type, sorted, 
@@ -370,91 +346,105 @@ void testTrueData(){
 					  "datasets/true-data/terrorists/terrorist.groups");
 }
 
-void testMediumFiles(){
+void testMediumFilesAllModes(int sorted){
 	int type = 2;
-	int sorted = 0;
-	cout << "NO SORTED" << endl;
-	testGraphAllModes("datasets/com-amazon.ungraph.txt", type, sorted, "");
-	testGraphAllModes("datasets/com-dblp.ungraph.txt", type, sorted, "");
-
-	sorted = 1;
-	cout << "SORTED" << endl;
 	testGraphAllModes("datasets/com-amazon.ungraph.txt", type, sorted, "");
 	testGraphAllModes("datasets/com-dblp.ungraph.txt", type, sorted, "");
 }
 
-void testBigFiles(){
+void testBigFilesAllModes(int sorted){
 	int type = 2;
-	int sorted = 0;
-	cout << "NO SORTED" << endl;
-	testGraphAllModes("datasets/com-youtube.ungraph.txt", type, sorted, "");
-
-	sorted = 1;
-	cout << "SORTED" << endl;
 	testGraphAllModes("datasets/com-youtube.ungraph.txt", type, sorted, "");
 }
 
-void testModeAlgorithm(int mode){
-	int type = 3;
-	int sorted = 0;
-	cout << "NO SORTED NET FILES" << endl;
-	testGraph("datasets/converted/karate.net", type, sorted, "", mode);
-	testGraph("datasets/converted/lesmiserables.net", type, sorted, "", mode);
-	testGraph("datasets/converted/football.net", type, sorted, "", mode);
-	testGraph("datasets/converted/4adjnoun.net", type, sorted, "", mode);
-	testGraph("datasets/converted/5powergrid.net", type, sorted, "", mode);
-	testGraph("datasets/converted/4internet.net", type, sorted, "", mode);
+void testAllFilesAllModes(int sorted){
 
-	sorted = 1;
-	cout << "SORTED NET FILES" << endl;
-	testGraph("datasets/converted/karate.net", type, sorted, "", mode);
-	testGraph("datasets/converted/lesmiserables.net", type, sorted, "", mode);
-	testGraph("datasets/converted/football.net", type, sorted, "", mode);
-	testGraph("datasets/converted/4adjnoun.net", type, sorted, "", mode);
-	testGraph("datasets/converted/5powergrid.net", type, sorted, "", mode);
-	testGraph("datasets/converted/4internet.net", type, sorted, "", mode);
+	cout << " NET FILES" << endl;
+	testNETFilesAllModes(sorted);
 
+	cout << "NMI FILES" << endl;
+	testNMIFilesAllModes(sorted);
 
-	type = 2;
-	sorted = 0;
-	cout << "NO SORTED NMI FILES" << endl;
-	testGraph("datasets/true-data/email/email-Eu-core.txt", type, sorted, 
-					  "datasets/true-data/email/email-Eu-core-department-labels.txt", mode);
-	testGraph("datasets/true-data/grass_web/grass_web.pairs", type, sorted, 
-					  "datasets/true-data/grass_web/grass_web.labels", mode);
-	testGraph("datasets/true-data/karate/karate_edges_77.txt", type, sorted, 
-					  "datasets/true-data/karate/karate_groups.txt", mode);
-	testGraph("datasets/true-data/terrorists/terrorist.pairs", type, sorted, 
-					  "datasets/true-data/terrorists/terrorist.groups", mode);
+	cout << "MEDIUM FILES" << endl;
+	testMediumFilesAllModes(sorted);
 
-	sorted = 1;
-	cout << "SORTED NMI FILES" << endl;
-	testGraph("datasets/true-data/email/email-Eu-core.txt", type, sorted, 
-					  "datasets/true-data/email/email-Eu-core-department-labels.txt", mode);
-	testGraph("datasets/true-data/grass_web/grass_web.pairs", type, sorted, 
-					  "datasets/true-data/grass_web/grass_web.labels", mode);
-	testGraph("datasets/true-data/karate/karate_edges_77.txt", type, sorted, 
-					  "datasets/true-data/karate/karate_groups.txt", mode);
-	testGraph("datasets/true-data/terrorists/terrorist.pairs", type, sorted, 
-					  "datasets/true-data/terrorists/terrorist.groups", mode);
-
-	type = 2;
-	sorted = 0;
-	cout << "NO SORTED MEDIUM FILES" << endl;
-	testGraph("datasets/com-amazon.ungraph.txt", type, sorted, "", mode);
-	testGraph("datasets/com-dblp.ungraph.txt", type, sorted, "", mode);
-
-	sorted = 1;
-	cout << "SORTED MEDIUM FILES" << endl;
-	testGraph("datasets/com-amazon.ungraph.txt", type, sorted, "", mode);
-	testGraph("datasets/com-dblp.ungraph.txt", type, sorted, "", mode);
-
-	type = 2;
-	sorted = 0;
-	cout << "NO SORTED BIG FILES" << endl;
-	testGraph("datasets/com-youtube.ungraph.txt", type, sorted, "", mode);
-
-	sorted = 1;
-	cout << "SORTED FILES" << endl;
-	testGraph("datasets/com-youtube.ungraph.txt", type, sorted, "", mode);
+	cout << "BIG FILES" << endl;
+	testBigFilesAllModes(sorted);
 }
+
+void testNETFiles(int mode, int sorted){
+
+	if(mode == 4){
+		testNETFilesAllModes(sorted);
+	}
+	else{
+		int type = 3;
+		testGraph("datasets/converted/karate.net", type, sorted, "", mode);
+		testGraph("datasets/converted/lesmiserables.net", type, sorted, "", mode);
+		testGraph("datasets/converted/football.net", type, sorted, "", mode);
+		testGraph("datasets/converted/4adjnoun.net", type, sorted, "", mode);
+		testGraph("datasets/converted/5powergrid.net", type, sorted, "", mode);
+		testGraph("datasets/converted/4internet.net", type, sorted, "", mode);
+	}
+}
+
+void testNMIFiles(int mode, int sorted){
+	
+	if(mode == 4){
+		testNMIFilesAllModes(sorted);
+	}
+	else{
+		int type = 2;
+		testGraph("datasets/true-data/email/email-Eu-core.txt", type, sorted, 
+						  "datasets/true-data/email/email-Eu-core-department-labels.txt", mode);
+		testGraph("datasets/true-data/grass_web/grass_web.pairs", type, sorted, 
+						  "datasets/true-data/grass_web/grass_web.labels", mode);
+		testGraph("datasets/true-data/karate/karate_edges_77.txt", type, sorted, 
+						  "datasets/true-data/karate/karate_groups.txt", mode);
+		testGraph("datasets/true-data/terrorists/terrorist.pairs", type, sorted, 
+					  "datasets/true-data/terrorists/terrorist.groups", mode);
+	}
+}
+
+void testMediumFiles(int mode, int sorted){
+	
+	if(mode == 4){
+		testMediumFilesAllModes(sorted);
+	}
+	else{
+		int type = 2;
+		testGraph("datasets/com-amazon.ungraph.txt", type, sorted, "", mode);
+		testGraph("datasets/com-dblp.ungraph.txt", type, sorted, "", mode);
+	}
+}
+
+void testBigFiles(int sorted, int mode){
+
+	if(mode == 4){
+		testBigFilesAllModes(sorted);
+	}
+	else{
+		int type = 2;
+		testGraph("datasets/com-youtube.ungraph.txt", type, sorted, "", mode);
+	}
+}
+
+void testAllFiles(int mode, int sorted){
+	if(mode == 4){
+		testAllFilesAllModes(sorted);
+	}
+	else{
+		cout << " NET FILES" << endl;
+		testNETFiles(sorted, mode);
+
+		cout << "NMI FILES" << endl;
+		testNMIFiles(sorted, mode);
+
+		cout << "MEDIUM FILES" << endl;
+		testMediumFiles(sorted, mode);
+
+		cout << "BIG FILES" << endl;
+		testBigFiles(sorted, mode);
+	}
+}
+

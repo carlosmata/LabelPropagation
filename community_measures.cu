@@ -39,26 +39,28 @@ int getAij(
             return 1;
     }
 
-return 0;
+    return 0;
 }
 /**
 Get the modularity of a result of the label propagation algorithm
 in other words its a measure of quality of the algorithm
 */
-float getModularity(int *edges, int *indexs, int nNodes, int nEdges, int *labels){
+float getModularity(int *edges, 
+                    int *indexs, 
+                    int nNodes, 
+                    int nEdges, 
+                    int *labels){
     int m = nEdges / 2; //Undirected graph
     float sum = 0;
-    float delta = 0;
+    int gradei, gradej, aij;
+    //float delta = 0;
     for(int i = 0; i < nNodes; i++){
+        gradei = getGrade(i, indexs, nNodes, nEdges);
         for(int j = 0; j < nNodes; j++){
-            if(i != j){
-                delta = (labels[i] == labels[j])?1 : 0;
-                if(delta == 1){
-                    sum += ((getAij(i, j, indexs, edges, nNodes, nEdges) - 
-                            getGrade(i, indexs, nNodes, nEdges) * getGrade(j, indexs, nNodes, nEdges) / 
-                            (2.0f * m)
-                            ) /** delta */);
-                }
+            if(i != j && labels[i] == labels[j]){
+                gradej = getGrade(j, indexs, nNodes, nEdges);
+                aij = getAij(i, j, indexs, edges, nNodes, nEdges);
+                sum += ((aij - gradei * gradej / (2.0f * m)) /** delta */);
             }
         }
     }
@@ -230,3 +232,81 @@ float getNMI(int* labelsCalculated, int* trueLabels, int nNodes){
 
     return nmi;
 }
+
+
+/**
+    Compute the y estimation to gradient descent
+*/
+void get_y_estimation(float b1, float *y_estimation, int n){
+    int x = 0;
+
+    for(int i = 0; i < n; i++){
+        x = i;
+        y_estimation[i] = b1 * (1 / x);
+    }
+}
+
+/**
+    Compute the cuadratic square error to gradient descent
+*/
+float get_recm(float *y, float *y_estimation, int n){
+    float error = 0;
+    float sumsquare = 0;
+
+    for(int i = 0; i < n;i++){
+        sumsquare += pow(y[i] - y_estimation[i], 2);
+    }
+
+    error = sqrt(sumsquare / n);
+
+    return error;
+}
+
+/**
+    Compute the gradient or step to computes the betas in the model
+*/
+float gradient(float* y, float* y_estimation, int n){
+    float sum = 0;
+    for(int i = 0; i < n; i++){
+        sum = (y[i] - y_estimation[i]) * -i;
+    }
+
+    return 1 / n * sum;
+}
+
+/**
+    Compute the gradient descent and obtain the 
+*/
+float* gradient_descent(
+                    int n, 
+                    float* y, 
+                    float larning_rate /*=0.1*/, 
+                    int max_iter /*=1000*/, 
+                    float min_lost /*=0.4*/){
+    float b1 = 0.5f;
+    float *y_estimation = new float[n];
+    float error;
+
+    float *result = new float[2];
+
+    for(int i= 0; i < max_iter; i++){
+        get_y_estimation(b1, y_estimation, n);
+        error = get_recm(y, y_estimation, n);
+
+        if(error <= min_lost){
+            break;
+        }
+        else{
+            b1 = b1 - larning_rate * gradient(y,  y_estimation, n);
+        }
+    }
+
+    result[0] = b1;
+    result[1] = error;
+
+    delete[] y_estimation;
+    return result;
+}
+
+
+
