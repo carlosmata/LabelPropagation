@@ -242,7 +242,7 @@ void get_y_estimation(float b1, float *y_estimation, int n){
 
     for(int i = 0; i < n; i++){
         x = i;
-        y_estimation[i] = b1 * (1 / x);
+        y_estimation[i] = b1 * (1.0f / x);
     }
 }
 
@@ -267,11 +267,13 @@ float get_recm(float *y, float *y_estimation, int n){
 */
 float gradient(float* y, float* y_estimation, int n){
     float sum = 0;
+    int x = 0;
     for(int i = 0; i < n; i++){
-        sum = (y[i] - y_estimation[i]) * -i;
+        x = i;
+        sum = (y[i] - y_estimation[i]) * (-2.0f / x);
     }
 
-    return 1 / n * sum;
+    return 1.0f / n * sum;
 }
 
 /**
@@ -289,10 +291,18 @@ float* gradient_descent(
 
     float *result = new float[2];
 
+    //cout << "start of GD" << endl;
+
     for(int i= 0; i < max_iter; i++){
+        //cout << "start estimation GD" << endl;
+
         get_y_estimation(b1, y_estimation, n);
+        
+        //cout << "start recm and end estimation GD" << endl;
+
         error = get_recm(y, y_estimation, n);
 
+        //cout << "end recm GD" << endl;
         if(error <= min_lost){
             break;
         }
@@ -301,6 +311,7 @@ float* gradient_descent(
         }
     }
 
+    //cout << "end of GD" << endl;
     result[0] = b1;
     result[1] = error;
 

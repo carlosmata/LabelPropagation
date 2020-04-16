@@ -695,7 +695,7 @@ void lp_reduce(
 		idx += blockDim.x * gridDim.x;		
 	}
 }
-//---------------------
+//--------------------------------------------
 
 //Computes Labels
 __global__
@@ -728,7 +728,7 @@ void lp_compare_labels(
 	
 	while(idx < nNodes){
 		if(labels[idx] != labels_ant[idx]){
-			atomicAdd(numberChanges, 1);
+			numberChanges++;
 		}
 		idx += blockDim.x * gridDim.x;
 	}

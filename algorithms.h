@@ -3,6 +3,7 @@
 #include <bits/stdc++.h>
 #include "community_measures.cu"
 #include "scan.h"
+#include "reduce.h"
 
 using namespace std;
 #define MIN(a,b) ((a > b)? b:a)		//Function to return the minium
@@ -404,11 +405,11 @@ int* labelPropagationSequential(
 	}
 	int maxIteration = MIN(nNodes, MAX_ITERATION);
 	
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(changes){//until a node dont have the maximum of their neightbors
 		//mod = getModularity(tails, indexs, nNodes, nEdges, labels);
@@ -442,16 +443,16 @@ int* labelPropagationSequential(
 		}
 		t++;
 		com = countCommunities(labels, nNodes);
-		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
+		cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
 		
-		/*dataY[t] = com;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 		
 		res = comAnt - com;
 		if(res == 0 && resAnt ==0){ break; }
@@ -465,8 +466,8 @@ int* labelPropagationSequential(
 
 	delete[] labelsAux;
 	delete[] nodes;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 	
 	return labels;
 }
@@ -578,11 +579,11 @@ int* labelPropagationSemiSynchSeq(
 	int maxIteration = MIN(nNodes, MAX_ITERATION);
 	int index, nextIndex;
 	
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(changes){
 		changes = 0;
@@ -606,15 +607,15 @@ int* labelPropagationSemiSynchSeq(
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -627,8 +628,8 @@ int* labelPropagationSemiSynchSeq(
 
 	delete[] colors;
 	delete[] ptrcolors;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
@@ -696,11 +697,11 @@ int* LPParallelSynchronous(
 	int res = 0, resAnt = -1;
 	int maxIteration = MIN(nNodes, MAX_ITERATION);
 	
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
@@ -737,15 +738,15 @@ int* LPParallelSynchronous(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -765,8 +766,8 @@ int* LPParallelSynchronous(
 	cudaFree(d_thereAreChanges);
 
 	delete[] nodes;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
@@ -833,11 +834,11 @@ int* LPParallelAsynchronous(
 
 	int maxIteration = MIN(nNodes, MAX_ITERATION);
 	
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
@@ -870,15 +871,15 @@ int* LPParallelAsynchronous(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -898,8 +899,8 @@ int* LPParallelAsynchronous(
 	cudaFree(d_thereAreChanges);
 
 	delete[] nodes;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
@@ -970,11 +971,11 @@ int* LPParallelSemySynchronous(
 	int index, nextIndex;
 	int tamLow, tamHigh;
 
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(changes > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
@@ -1035,15 +1036,15 @@ int* LPParallelSemySynchronous(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << changes << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -1063,8 +1064,8 @@ int* LPParallelSemySynchronous(
 
 	delete[] ptrcolors;
 	delete[] colors;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
@@ -1148,11 +1149,11 @@ int* LPParallel_V2(
 	int* aux = new int[nEdges];
 	int* auxNodes = new int[nNodes];
 
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(numberChanges > 0){//until a node dont have the maximum label of their neightbors	 
 		lp_copy_array<<<nBlocksNodes, nTPB>>>(d_labels_ant, d_labels, nNodes);
@@ -1195,40 +1196,54 @@ int* LPParallel_V2(
 		lp_init_W<<<nBlocksEdges, nTPB>>>(d_S, d_W, d_F_s, nEdges);
 		cudaDeviceSynchronize();
 
-		lp_reduce<<<nBlocksNodes, nTPB>>>(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
+		segmented_reduce(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
+		//lp_reduce<<<nBlocksNodes, nTPB>>>(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
 		check_CUDA_Error("Kernel lp_reduce invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
+		//printf("acabo segmented_reduce en algorithms\n" );
+		cudaMemcpy(auxNodes, d_I, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		printarray(auxNodes, nNodes);
 
+		
 		lp_compute_labels<<<nBlocksNodes, nTPB>>>(d_labels, d_labels_v, d_S, d_I, nNodes);
 		check_CUDA_Error("Kernel lp_compute_labels invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
+		//printf("acabo lp_compute_labels en algorithms\n" );
+		//cout << "\n acabo lp_compute_labels en algorithms" << endl;
 
 		/*cudaMemcpy(auxNodes, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 		printarray(auxNodes, nNodes);
 
 		cudaMemcpy(auxNodes, d_labels_ant, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 		printarray(auxNodes, nNodes);*/
-
+		//cout << "\n empieza cuda memset en algorithms" << endl;
+		//printf("empieza cuda memset en algorithms\n" );
 		cudaMemset(d_numberChanges, 0, sizeof(int));
+		//printf("empieza lp_compare_labels en algorithms\n" );
+		//cout << "\n empieza lp_compare_labels en algorithms" << endl;
 		lp_compare_labels<<<nBlocksNodes, nTPB>>>(d_labels, d_labels_ant, d_numberChanges, nNodes);
 		check_CUDA_Error("Kernel lp_compute_labels invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
+		//printf("acabo lp_compare_labels en algorithms\n" );
+		//cout << "\n acabo lp_compare_labels en algorithms" << endl;
 
 		cudaMemcpy(&numberChanges, d_numberChanges, sizeof(int), cudaMemcpyDeviceToHost);
 		cudaMemcpy(labels, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
 
+		//cout << "\n acabo memcpy en algorithms" << endl;
+		//printf("acabo memcpy en algorithms\n" );
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << numberChanges << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << numberChanges << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -1254,8 +1269,8 @@ int* LPParallel_V2(
 
 	delete[] aux;
 	delete[] auxNodes;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
@@ -1311,11 +1326,11 @@ int* LPParallelAsynchronous_v2(
 
 	int maxIteration = MIN(nNodes, MAX_ITERATION);
 	
-	/*float *dataY = new float[maxIteration];
+	float *dataY = new float[maxIteration];
 	float* results = nullptr;
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
-	float min_error = 0.4f;*/
+	float min_error = 0.4f;
 
 	while(thereAreChanges > 0){//until a node dont have the maximum label of their neightbors
 		//thereAreChanges =  0;
@@ -1348,15 +1363,15 @@ int* LPParallelAsynchronous_v2(
 
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
-		//cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
-		/*dataY[t] = com;
+		cout << " t:" << t << " changes:" << thereAreChanges << " communities:" << com << endl;
+		dataY[t] = com;
 		if(t >= 10){
 			results = gradient_descent(t, dataY, learning_rate, maxitergd, min_error); //results[0] = beta, results[1] = error	
 			if(results[1] < min_error){
 				break;
 			}
 
-		}*/
+		}
 
 		if(res == 0 && resAnt ==0){ break; }
 		comAnt = com;
@@ -1376,8 +1391,8 @@ int* LPParallelAsynchronous_v2(
 	cudaFree(d_thereAreChanges);
 
 	delete[] nodes;
-	//delete[] dataY;
-	//delete[] results;
+	delete[] dataY;
+	delete[] results;
 
 	return labels;
 }
