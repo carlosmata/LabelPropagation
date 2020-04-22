@@ -1107,6 +1107,7 @@ int* LPParallel_V2(
 	int *d_W;			//size:F[n - 1] + 1
 	int *d_S_ptr;		//size:nNodes
 	int *d_I;			//size:nNodes
+	int *d_s_maxs;
 
 	int *d_tails;		//id size:nEdges
 	int *d_indexs;		//ptr size:nNodes
@@ -1123,6 +1124,7 @@ int* LPParallel_V2(
 	cudaMalloc(&d_W, nEdges * sizeof(int));
 	cudaMalloc(&d_S_ptr, nNodes * sizeof(int));
 	cudaMalloc(&d_I, nNodes * sizeof(int));
+	cudaMalloc(&d_s_maxs, nNodes * sizeof(int));
 	cudaMalloc(&d_tails, nEdges * sizeof(int));
 	cudaMalloc(&d_indexs, nNodes * sizeof(int));
 	cudaMalloc(&d_numberChanges, sizeof(int));
@@ -1154,6 +1156,10 @@ int* LPParallel_V2(
 	float learning_rate = 0.1f;
 	int maxitergd = 1000;
 	float min_error = 0.4f;
+
+	int sizeW = 0;
+	int *d_sizeW;
+	cudaMalloc(&d_sizeW, sizeof(int));
 
 	while(numberChanges > 0){//until a node dont have the maximum label of their neightbors	 
 		lp_copy_array<<<nBlocksNodes, nTPB>>>(d_labels_ant, d_labels, nNodes);
@@ -1196,18 +1202,29 @@ int* LPParallel_V2(
 		lp_init_W<<<nBlocksEdges, nTPB>>>(d_S, d_W, d_F_s, nEdges);
 		cudaDeviceSynchronize();
 
-		segmented_reduce(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
-		//lp_reduce<<<nBlocksNodes, nTPB>>>(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
+		//get_size_W<<<1,1>>>(d_F_s, nEdges, d_sizeW);
+		//cudaMemcpy(&sizeW, d_sizeW, sizeof(int), cudaMemcpyDeviceToHost);
+		//segmented_reduce(d_S_ptr, d_W, d_s_maxs, d_I, sizeW, nNodes, seed);
+		
+		lp_reduce<<<nBlocksNodes, nTPB>>>(d_S_ptr, d_W, d_I, nNodes, seed, d_F_s, nEdges);
 		check_CUDA_Error("Kernel lp_reduce invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
 		//printf("acabo segmented_reduce en algorithms\n" );
-		cudaMemcpy(auxNodes, d_I, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
-		printarray(auxNodes, nNodes);
+		//cudaMemcpy(auxNodes, d_s_maxs, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		//printarray(auxNodes, nNodes);
 
-		
+		//cudaMemcpy(auxNodes, d_I, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		//printarray(auxNodes, nNodes);
+
+
+
 		lp_compute_labels<<<nBlocksNodes, nTPB>>>(d_labels, d_labels_v, d_S, d_I, nNodes);
 		check_CUDA_Error("Kernel lp_compute_labels invocation");
 		cudaCheckError( cudaDeviceSynchronize() );
+		//cudaMemcpy(auxNodes, d_labels, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		//printarray(auxNodes, nNodes);
+		//cudaMemcpy(auxNodes, d_labels_ant, nNodes * sizeof(int), cudaMemcpyDeviceToHost);
+		//printarray(auxNodes, nNodes);
 		//printf("acabo lp_compute_labels en algorithms\n" );
 		//cout << "\n acabo lp_compute_labels en algorithms" << endl;
 
@@ -1235,6 +1252,8 @@ int* LPParallel_V2(
 		t++;
 		com = countCommunities(labels, nNodes);
 		res = comAnt - com;
+
+
 		cout << " t:" << t << " changes:" << numberChanges << " communities:" << com << endl;
 		dataY[t] = com;
 		if(t >= 10){
@@ -1266,6 +1285,7 @@ int* LPParallel_V2(
 	cudaFree(d_tails);
 	cudaFree(d_indexs);
 	cudaFree(d_numberChanges);
+	cudaFree(d_sizeW);
 
 	delete[] aux;
 	delete[] auxNodes;

@@ -269,7 +269,7 @@ void printGraph(Graph *g){
 //-----------------------------------------------main--------------------------------------------------------------
 
 void testLabelGraph(Graph *g, string truedata, int mode){
-	//label_propagation_sequential(g, truedata, mode);
+	label_propagation_sequential(g, truedata, mode);
 	label_propagation_parallel(g, truedata, mode);
 }
 

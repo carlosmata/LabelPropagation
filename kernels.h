@@ -728,12 +728,21 @@ void lp_compare_labels(
 	
 	while(idx < nNodes){
 		if(labels[idx] != labels_ant[idx]){
-			numberChanges++;
+			*numberChanges = *numberChanges + 1;
 		}
 		idx += blockDim.x * gridDim.x;
 	}
 }
 
+
+__global__
+void get_size_W(
+	int* F_s, 
+	int nEdges, 
+	int *sizeW)
+{
+	*sizeW = F_s[nEdges - 1] + 1;
+} 
 //----------------------------------------------------------------------------
 
 
