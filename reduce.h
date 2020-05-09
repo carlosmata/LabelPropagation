@@ -130,22 +130,22 @@ void s_reducePair_toTheLeft(
 	int imax = 0;
 	if(oLeft != oRight){
 
-		printf("BEFORE: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
+		/*printf("BEFORE: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
 				g_output[oRight], 
 				dRight, 
 				g_output_i[oRight], 
 				iRight, 
-				imax);
+				imax);*/
 
 		g_output[oRight] = op(g_output[oRight], dRight, g_output_i[oRight], iRight, imax, state);
 		g_output_i[oRight] = imax;
 
-		printf("AFTER: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
+		/*printf("AFTER: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
 				g_output[oRight], 
 				dRight, 
 				g_output_i[oRight], 
 				iRight, 
-				imax);
+				imax);*/
 	}
 	else{ 
 		dLeft = op(dLeft, dRight, iLeft, iRight, imax, state);

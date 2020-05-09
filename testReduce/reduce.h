@@ -87,28 +87,29 @@ int op(
 	int data2, 
 	int idata1,
 	int idata2,
-	int &imax,
+	int *imax,
 	curandState_t state)
 {
 	int max = 0;
 
 	if(data1 > data2){
 		max = data1;
-		imax = idata1;
+		*imax = idata1;
 	}
 	else if(data2 > data1){
 		max = data2;
-		imax = idata2;
+		*imax = idata2;
 	}
 	else{
 		int randBand = curand(&state) % 2;
+		//printf("hay datos iguales\n");
 		if(randBand == 0){
 			max = data1;
-			imax = idata1;
+			*imax = idata1;
 		}
 		else{
 			max = data2;
-			imax = idata2;
+			*imax = idata2;
 		}
 	}
 
@@ -130,25 +131,25 @@ void s_reducePair_toTheLeft(
 	int imax = 0;
 	if(oLeft != oRight){
 
-		printf("BEFORE: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
+		/*printf("BEFORE: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
 				g_output[oRight], 
 				dRight, 
 				g_output_i[oRight], 
 				iRight, 
-				imax);
+				imax);*/
 
-		g_output[oRight] = op(g_output[oRight], dRight, g_output_i[oRight], iRight, imax, state);
+		g_output[oRight] = op(g_output[oRight], dRight, g_output_i[oRight], iRight, &imax, state);
 		g_output_i[oRight] = imax;
 
-		printf("AFTER: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
+		/*printf("AFTER: g_output[oRight]:%d, dRight:%d, g_output_i[oRight]:%d, iRight:%d, imax:%d \n", 
 				g_output[oRight], 
 				dRight, 
 				g_output_i[oRight], 
 				iRight, 
-				imax);
+				imax);*/
 	}
 	else{ 
-		dLeft = op(dLeft, dRight, iLeft, iRight, imax, state);
+		dLeft = op(dLeft, dRight, iLeft, iRight, &imax, state);
 		iLeft = imax;
 	}
 
@@ -177,10 +178,12 @@ void tb_reduceWarp(
 	if( !(lane & 15) ) // lane % 16 == 0
 		s_reducePair_toTheLeft(g_output, g_output_i, s_owner[thid], s_data[thid], s_wi[thid], s_owner[thid + 8], s_data[thid + 8], s_wi[thid + 8], state);  
 	if( !(lane & 31) ){ // lane % 32 == 0
-		s_reducePair_toTheLeft(g_output, g_output_i, s_owner[thid], s_data[thid], s_wi[thid], s_owner[thid + 16], s_data[thid + 16], s_wi[thid + 16], state);
+		//s_reducePair_toTheLeft(g_output, g_output_i, s_owner[thid], s_data[thid], s_wi[thid], s_owner[thid + 16], s_data[thid + 16], s_wi[thid + 16], state);
 		target = s_data[thid];
 		owner_target = s_owner[thid];
 		iw_target = s_wi[thid];
+
+		s_reducePair_toTheLeft(g_output, g_output_i, owner_target, target, iw_target, s_owner[thid + 16], s_data[thid + 16], s_wi[thid + 16], state);
 	} 
 		//target = op(s_data[thid], s_data[thid + 16], state);	   
 }
@@ -245,7 +248,7 @@ void warp_reduction (
 		int imax = 0;
 		g_output[s_owner[0]] = op(g_output[s_owner[0]], s_data[0], 
 								  g_output_i[s_owner[0]], s_iw[0], 
-								  imax, state);
+								  &imax, state);
 		g_output_i[s_owner[0]] = imax;
 	}
 	//The final result is in s_data[0]
